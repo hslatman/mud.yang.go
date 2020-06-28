@@ -72,12 +72,35 @@ These changes included the following fields:
 ## Development
 
 A slightly patched version of `goyang` is used to generate the code.
+The patch edits out a check that results in an error when trying to generate `mudyang.go` and can be found in this (draft) [PR](https://github.com/hslatman/goyang/pull/1).
 
-TODO: describe in more detail; add link to repo/commit.
-TODO: add command to generate the mud.yang.go file
+The command to generate `mudyang.go` is as follows:
+
+```bash
+# within a local clone of the ygot source, assuming relative path(s) to hslatman/mud.yang.go:
+go run generator/generator.go -path=./../../hslatman/mud.yang.go/yang \
+-output_file=./../../hslatman/mud.yang.go/pkg/mudyang/mudyang.go \
+-package_name=mudyang -generate_fakeroot -fakeroot_name=mudfile \
+./../../hslatman/mud.yang.go/yang/ietf-packet-fields@2019-03-04.yang \
+./../../hslatman/mud.yang.go/yang/ietf-ethertypes@2019-03-04.yang \
+./../../hslatman/mud.yang.go/yang/ietf-acldns.yang \
+./../../hslatman/mud.yang.go/yang/ietf-inet-types.yang \
+./../../hslatman/mud.yang.go/yang/ietf-access-control-list.yang \
+./../../hslatman/mud.yang.go/yang/ietf-mud@2019-01-28.yang
+```
+
+NOTE: despite the fact of specifying the path to scan for YANG files to include, this did not seem to work, which is why I've included the other required YANG files before the MUD YANG file.
+
+*TODO: improve the command, i.e. provide a script or Go command to run it.
+
 
 ## TODOs
 
-* Add some utility commands, like a YANG validator, compiler, etc.
+* Add some utility commands, like a YANG validator, compiler, etc (using cobra?)
 * Add [yangmodels/yang](https://github.com/YangModels/yang) as a submodule?
 * Add more example MUD files and usage examples.
+* Add tests?
+* Provide own command for generating the file
+* Change header of the generated code?
+* Add utility functions in a wrapper of pkg/mudyang
+* Properly patch the goyang library upstream?
