@@ -10,9 +10,49 @@ The (required) YANG files were sourced from [yangmodels/yang](https://github.com
 
 ## Usage
  
-See main.go
+Import the generated code as a library:
 
-TODO: elaborate.
+```
+go get github.com/hslatman/mud.yang.go/pkg/mudyang
+```
+
+And use it:
+
+```bash
+package main
+
+import (
+    "fmt"
+	"io/ioutil"
+
+	"github.com/hslatman/mud.yang.go/pkg/mudyang"
+)
+
+func main() {
+
+	json, _ := ioutil.ReadFile("./examples/lightbulb2000.json")
+	mud := &mudyang.Mudfile{}
+	if err := mudyang.Unmarshal([]byte(json), mud); err != nil {
+		panic(fmt.Sprintf("Can't unmarshal JSON: %v", err))
+	}
+
+	println(*lmud.Mud.MudUrl)
+	println(*mud.Mud.MudVersion)
+	println(mud.Mud.MudSignature)
+
+	for k, v := range loadd.Acls.Acl {
+		println(k, v)
+	}
+
+}
+```
+
+Also see [main.go](main.go) for a running example.
+It can be executed using the following command:
+
+```bash
+$ go run main.go -f ./examples/amazonEchoMud.json
+```
 
 ## Examples
 
@@ -36,3 +76,8 @@ A slightly patched version of `goyang` is used to generate the code.
 TODO: describe in more detail; add link to repo/commit.
 TODO: add command to generate the mud.yang.go file
 
+## TODOs
+
+* Add some utility commands, like a YANG validator, compiler, etc.
+* Add [yangmodels/yang](https://github.com/YangModels/yang) as a submodule?
+* Add more example MUD files and usage examples.
