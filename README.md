@@ -67,12 +67,13 @@ These changes included the following fields:
 
 * ietf-access-control-list:access-lists -> ietf-access-control-list:acls
 * ethernet-acl-type -> eth-acl-type
-* ethertypes hex string to integer
+* ethertypes hex string values to integers
 
 ## Development
 
 A slightly patched version of `goyang` is used to generate the code.
-The patch edits out a check that results in an error when trying to generate `mudyang.go` and can be found in this (draft) [PR](https://github.com/hslatman/goyang/pull/1).
+The patch adds support for multiple `base` statements inside an `identity` statement, which is allowed in the YANG 1.1 format.
+It can be found in this [PR](https://github.com/openconfig/goyang/pull/130).
 
 The command to generate `mudyang.go` is as follows:
 
@@ -91,7 +92,21 @@ go run generator/generator.go -path=./../../hslatman/mud.yang.go/yang \
 
 NOTE: despite the fact of specifying the path to scan for YANG files to include, this did not seem to work, which is why I've included the other required YANG files before the MUD YANG file.
 
-*TODO: improve the command, i.e. provide a script or Go command to run it.
+A shorter variant that works, specifying only one additional YANG file instead of five, is the following:
+```bash
+# within a local clone of the ygot source, assuming relative path(s) to hslatman/mud.yang.go:
+go run generator/generator.go -path=./../../hslatman/mud.yang.go/yang \
+-output_file=./../../hslatman/mud.yang.go/pkg/mudyang/mudyang.go \
+-package_name=mudyang -generate_fakeroot -fakeroot_name=mudfile \
+./../../hslatman/mud.yang.go/yang/ietf-acldns.yang \
+./../../hslatman/mud.yang.go/yang/ietf-mud@2019-01-28.yang
+```
+
+Without the additional YANG file, the following error occurs:
+
+` Can't unmarshal JSON: parent container ipv4 (type *mudyang.IETFAccessControlList_Acls_Acl_Aces_Ace_Matches_Ipv4): JSON contains unexpected field ietf-acldns:dst-dnsname`
+
+* TODO: improve the command, i.e. provide a script or Go command to run it.
 
 
 ## TODOs
@@ -103,4 +118,3 @@ NOTE: despite the fact of specifying the path to scan for YANG files to include,
 * Provide own command for generating the file
 * Change header of the generated code?
 * Add utility functions in a wrapper of pkg/mudyang
-* Properly patch the goyang library upstream?
