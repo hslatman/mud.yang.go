@@ -1,3 +1,5 @@
+# github.com/fsnotify/fsnotify v1.4.9
+## explicit
 # github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 github.com/golang/glog
 # github.com/golang/protobuf v1.4.2
@@ -13,9 +15,13 @@ github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
 github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
+# github.com/inconshreveable/mousetrap v1.0.0
+github.com/inconshreveable/mousetrap
 # github.com/kylelemons/godebug v1.1.0
 github.com/kylelemons/godebug/diff
 github.com/kylelemons/godebug/pretty
+# github.com/mitchellh/mapstructure v1.3.2
+## explicit
 # github.com/openconfig/gnmi v0.0.0-20200508230933-d19cebf5e7be
 github.com/openconfig/gnmi/errlist
 github.com/openconfig/gnmi/proto/gnmi
@@ -25,13 +31,29 @@ github.com/openconfig/gnmi/value
 ## explicit
 github.com/openconfig/goyang/pkg/indent
 github.com/openconfig/goyang/pkg/yang
-# github.com/openconfig/ygot v0.8.0
+# github.com/openconfig/ygot v0.8.1
 ## explicit
 github.com/openconfig/ygot/proto/yext
 github.com/openconfig/ygot/proto/ywrapper
 github.com/openconfig/ygot/util
 github.com/openconfig/ygot/ygot
 github.com/openconfig/ygot/ytypes
+# github.com/pelletier/go-toml v1.8.0
+## explicit
+# github.com/spf13/afero v1.3.1
+## explicit
+# github.com/spf13/cast v1.3.1
+## explicit
+# github.com/spf13/cobra v1.0.0
+## explicit
+github.com/spf13/cobra
+# github.com/spf13/jwalterweatherman v1.1.0
+## explicit
+# github.com/spf13/pflag v1.0.5
+## explicit
+github.com/spf13/pflag
+# github.com/spf13/viper v1.7.0
+## explicit
 # golang.org/x/net v0.0.0-20200520182314-0ba52f642ac2
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
@@ -39,10 +61,12 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/sys v0.0.0-20200519105757-fe76b779f299
+# golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae
+## explicit
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
-# golang.org/x/text v0.3.2
+# golang.org/x/text v0.3.3
+## explicit
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
@@ -121,3 +145,5 @@ google.golang.org/protobuf/types/descriptorpb
 google.golang.org/protobuf/types/known/anypb
 google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/timestamppb
+# gopkg.in/ini.v1 v1.57.0
+## explicit
