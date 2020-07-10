@@ -6,6 +6,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var fileToRead string
+
 var rootCmd = &cobra.Command{
 	Use:   "mudyang",
 	Short: "todo",
@@ -26,6 +28,9 @@ func init() {
 
 	readCmd.PersistentFlags().StringVarP(&fileToRead, "file", "f", "", "MUD file to read")
 	readCmd.MarkFlagRequired("file")
+
+	validateCmd.PersistentFlags().StringVarP(&fileToRead, "file", "f", "", "MUD file to read")
+	validateCmd.MarkFlagRequired("file")
 
 	rootCmd.AddCommand(readCmd)
 	rootCmd.AddCommand(validateCmd)
