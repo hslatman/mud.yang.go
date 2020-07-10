@@ -20,7 +20,7 @@ var validateCmd = &cobra.Command{
 
 		json, err := ioutil.ReadFile(fileToRead)
 		if err != nil {
-			println(err)
+			println(fmt.Sprintf("File could not be read: %v", err))
 			return
 		}
 
@@ -35,7 +35,7 @@ var validateCmd = &cobra.Command{
 			Log:               true,
 		}
 		if err = mud.Validate(options); err != nil {
-			println(err)
+			println(fmt.Sprintf("Error validating MUD: %v", err))
 			return
 		}
 

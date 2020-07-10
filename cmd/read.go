@@ -22,7 +22,7 @@ var readCmd = &cobra.Command{
 
 		json, err := ioutil.ReadFile(fileToRead)
 		if err != nil {
-			println(err)
+			println(fmt.Sprintf("File could not be read: %v", err))
 			return
 		}
 
