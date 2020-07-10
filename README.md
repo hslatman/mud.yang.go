@@ -82,7 +82,22 @@ These changes included changing the following fields:
 
 ## Development
 
-A slightly patched version of `goyang` is used to generate the code.
+An early version of a custom generator for the generated Go code from YANG is available as a command in the main program in this repository.
+It can be used as follows:
+
+```bash
+# run the mudyang.go generator
+$ go run main.go generate
+```
+
+There are two small caveats to this command:
+
+* When using the current version of goyang (on which ygot is built), the generation will fail, because of this [PR](https://github.com/openconfig/goyang/pull/130).
+* When an invalid pkg/mudyang.go file is generated, Go will complain about this in the next run.
+
+### Manual Generation
+
+A slightly patched version of `goyang` can be used to generate the code.
 The patch adds support for multiple `base` statements inside an `identity` statement, which is allowed in the YANG 1.1 format.
 It can be found in this [PR](https://github.com/openconfig/goyang/pull/130).
 
@@ -104,6 +119,7 @@ go run generator/generator.go -path=./../../hslatman/mud.yang.go/yang \
 NOTE: despite the fact of specifying the path to scan for YANG files to include, this did not seem to work, which is why I've included the other required YANG files before the MUD YANG file.
 
 A shorter variant that works, specifying only one additional YANG file instead of five, is the following:
+
 ```bash
 # within a local clone of the ygot source, assuming relative path(s) to hslatman/mud.yang.go:
 go run generator/generator.go -path=./../../hslatman/mud.yang.go/yang \
@@ -117,15 +133,10 @@ Without the additional YANG file, the following error occurs:
 
 ` Can't unmarshal JSON: parent container ipv4 (type *mudyang.IETFAccessControlList_Acls_Acl_Aces_Ace_Matches_Ipv4): JSON contains unexpected field ietf-acldns:dst-dnsname`
 
-* TODO: improve the command, i.e. provide a script or Go command to run it.
-
-
 ## TODOs
 
-* Add some utility commands, like a YANG validator, compiler, etc (using cobra?)
 * Add [yangmodels/yang](https://github.com/YangModels/yang) as a submodule?
-* Add more example MUD files and usage examples.
 * Add tests?
-* Provide own command for generating the file
 * Change header of the generated code?
 * Add utility functions in a wrapper of pkg/mudyang
+* Look into path structs functionality of ygot generator
