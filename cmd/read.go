@@ -15,12 +15,10 @@ var readCmd = &cobra.Command{
 	Use:   "read",
 	Short: "Reads a MUD file",
 	Long:  `Reads and dumps contents of a MUD file`,
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 
-		if fileToRead == "" {
-			println("File to read not specified; use -f to specify the MUD to read")
-			return
-		}
+		fileToRead := args[0]
 
 		json, err := ioutil.ReadFile(fileToRead)
 		if err != nil {
