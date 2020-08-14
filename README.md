@@ -53,7 +53,7 @@ func main() {
 		panic(fmt.Sprintf("Can't unmarshal JSON: %v", err))
 	}
 
-	println(*lmud.Mud.MudUrl)
+	println(*mud.Mud.MudUrl)
 	println(*mud.Mud.MudVersion)
 	println(mud.Mud.MudSignature)
 
