@@ -5,8 +5,9 @@ go 1.14
 require (
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/mitchellh/mapstructure v1.3.2 // indirect
-	github.com/openconfig/goyang v0.0.0-20200623182805-6be32aef2bcd
+	github.com/openconfig/goyang v0.2.0
 	github.com/openconfig/ygot v0.8.1
+	github.com/pborman/getopt v1.1.0 // indirect
 	github.com/pelletier/go-toml v1.8.0 // indirect
 	github.com/spf13/afero v1.3.1 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
