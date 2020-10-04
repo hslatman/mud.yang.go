@@ -30,7 +30,7 @@ github.com/openconfig/gnmi/value
 ## explicit
 github.com/openconfig/goyang/pkg/indent
 github.com/openconfig/goyang/pkg/yang
-# github.com/openconfig/ygot v0.8.9
+# github.com/openconfig/ygot v0.8.9 => ./../ygot
 ## explicit
 github.com/openconfig/ygot/genutil
 github.com/openconfig/ygot/util
@@ -139,3 +139,4 @@ google.golang.org/protobuf/types/descriptorpb
 google.golang.org/protobuf/types/known/anypb
 google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/timestamppb
+# github.com/openconfig/ygot => ./../ygot
