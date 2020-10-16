@@ -40,6 +40,7 @@ var readCmd = &cobra.Command{
 			RFC7951Config: &ygot.RFC7951JSONConfig{
 				AppendModuleName: true,
 			},
+			SkipValidation: false,
 		})
 
 		if err != nil {

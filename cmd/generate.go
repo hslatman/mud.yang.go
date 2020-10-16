@@ -51,6 +51,7 @@ var generateCmd = &cobra.Command{
 		compressBehaviour, _ := genutil.TranslateToCompressBehaviour(compressPaths, excludeState, preferOperationalState)
 
 		cg := ygen.NewYANGCodeGenerator(&ygen.GeneratorConfig{
+			Caller: "github.com/hslatman/mud.yang.go",
 			ParseOptions: ygen.ParseOpts{
 				ExcludeModules:        modsExcluded,
 				SkipEnumDeduplication: skipEnumDedup,
