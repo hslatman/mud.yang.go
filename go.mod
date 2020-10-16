@@ -5,8 +5,8 @@ go 1.14
 require (
 	github.com/google/go-cmp v0.5.2 // indirect
 	github.com/openconfig/gnmi v0.0.0-20200617225440-d2b4e6a45802 // indirect
-	github.com/openconfig/goyang v0.2.0
-	github.com/openconfig/ygot v0.8.9
+	github.com/openconfig/goyang v0.2.1
+	github.com/openconfig/ygot v0.8.11-0.20201015203039-28239b4f08a9
 	github.com/pborman/getopt v1.1.0 // indirect
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/pflag v1.0.5 // indirect
