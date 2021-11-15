@@ -92,6 +92,7 @@ var generateCmd = &cobra.Command{
 			"yang/ietf-acldns.yang",
 			"yang/ietf-inet-types.yang",
 			"yang/ietf-access-control-list.yang",
+			"yang/ietf-mud-transparency@2021-10-xx.yang", // NOTE: currently sourced from https://github.com/elear/mud-sbom/commit/e8a1280a15f742c333f6222068df69c99f328de2
 			"yang/ietf-mud@2019-01-28.yang",
 		}
 
