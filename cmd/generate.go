@@ -43,6 +43,7 @@ var generateCmd = &cobra.Command{
 		generateAppend := false
 		generateLeafGetters := false
 		includeModelData := false
+		generateSimpleUnions := true
 
 		compressPaths := false
 		excludeState := false
@@ -79,6 +80,7 @@ var generateCmd = &cobra.Command{
 				GenerateAppendMethod: generateAppend,
 				GenerateLeafGetters:  generateLeafGetters,
 				IncludeModelData:     includeModelData,
+				GenerateSimpleUnions: generateSimpleUnions,
 			},
 		})
 
