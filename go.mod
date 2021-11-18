@@ -10,4 +10,4 @@ require (
 	github.com/spf13/cobra v1.2.1
 )
 
-replace github.com/openconfig/ygot => ./../ygot
+//replace github.com/openconfig/ygot => ./../ygot
