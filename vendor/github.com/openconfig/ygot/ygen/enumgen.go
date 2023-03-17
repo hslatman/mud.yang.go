@@ -25,9 +25,9 @@ import (
 )
 
 const (
-	// enumeratedUnionSuffix is the type name suffix given to enumerations
+	// EnumeratedUnionSuffix is the type name suffix given to enumerations
 	// defined as part of a union type.
-	enumeratedUnionSuffix = "Enum"
+	EnumeratedUnionSuffix = "Enum"
 )
 
 // enumSet contains generated enum names which can be queried.
@@ -83,14 +83,14 @@ func newEnumSet() *enumSet {
 // value is calculated based on the original context, whether path compression is enabled based
 // on the compressPaths boolean, and whether the name should not include underscores, as per the
 // noUnderscores boolean.
-func (s *enumSet) enumeratedUnionEntry(e *yang.Entry, compressPaths, noUnderscores, skipEnumDedup, shortenEnumLeafNames, useDefiningModuleForTypedefEnumNames, appendEnumSuffixForSimpleUnionEnums, useConsistentNamesForProtoUnionEnums bool, enumOrgPrefixesToTrim []string) ([]*yangEnum, error) {
+func (s *enumSet) enumeratedUnionEntry(e *yang.Entry, compressPaths, noUnderscores, skipEnumDedup, shortenEnumLeafNames, useDefiningModuleForTypedefEnumNames, appendEnumSuffixForSimpleUnionEnums bool, enumOrgPrefixesToTrim []string) ([]*yangEnum, error) {
 	var es []*yangEnum
 
 	for _, t := range util.EnumeratedUnionTypes(e.Type.Type) {
 		var en *yangEnum
 		switch {
 		case t.IdentityBase != nil:
-			identityName, err := s.identityrefBaseTypeFromIdentity(t.IdentityBase)
+			identityName, key, err := s.identityrefBaseTypeFromIdentity(t.IdentityBase)
 			if err != nil {
 				return nil, err
 			}
@@ -104,9 +104,11 @@ func (s *enumSet) enumeratedUnionEntry(e *yang.Entry, compressPaths, noUnderscor
 						IdentityBase: t.IdentityBase,
 					},
 				},
+				kind: IdentityType,
+				id:   key,
 			}
 		case t.Enum != nil:
-			var enumName string
+			var enumName, key string
 			var err error
 			// enumNameSake is the type that is going to be used to
 			// give this type its name, because enumerations
@@ -119,12 +121,22 @@ func (s *enumSet) enumeratedUnionEntry(e *yang.Entry, compressPaths, noUnderscor
 				}
 			}
 			if util.IsYANGBaseType(enumNameSake) {
-				enumName, err = s.enumName(e, compressPaths, noUnderscores, skipEnumDedup, shortenEnumLeafNames, useDefiningModuleForTypedefEnumNames && appendEnumSuffixForSimpleUnionEnums, enumOrgPrefixesToTrim)
+				enumName, key, err = s.enumName(e, compressPaths, noUnderscores, skipEnumDedup, shortenEnumLeafNames, useDefiningModuleForTypedefEnumNames && appendEnumSuffixForSimpleUnionEnums, enumOrgPrefixesToTrim)
 			} else {
-				enumName, err = s.typedefEnumeratedName(resolveTypeArgs{contextEntry: e, yangType: t}, noUnderscores, useDefiningModuleForTypedefEnumNames)
+				enumName, key, err = s.typedefEnumeratedName(resolveTypeArgs{contextEntry: e, yangType: t}, noUnderscores, useDefiningModuleForTypedefEnumNames)
 			}
 			if err != nil {
 				return nil, err
+			}
+
+			var enumKind EnumeratedValueType
+			switch {
+			case len(enumNameSake.Type) > 0 && util.IsYANGBaseType(enumNameSake):
+				enumKind = UnionEnumerationType
+			case len(enumNameSake.Type) > 0:
+				enumKind = DerivedUnionEnumerationType
+			default:
+				enumKind = DerivedEnumerationType
 			}
 
 			en = &yangEnum{
@@ -132,23 +144,13 @@ func (s *enumSet) enumeratedUnionEntry(e *yang.Entry, compressPaths, noUnderscor
 				entry: &yang.Entry{
 					Name: e.Name,
 					Type: &yang.YangType{
-						Name: e.Type.Name,
+						Name: enumNameSake.Name,
 						Kind: yang.Yenum,
 						Enum: t.Enum,
 					},
-					Annotation: map[string]interface{}{
-						"valuePrefix": util.SchemaPathNoChoiceCase(e),
-						// We skip generating the enum in the global proto enum file when the
-						// enumeration is a non-typedef enumeration within a non-typedef union
-						// type, and with consistent name generation.
-						// TODO(wenbli): Once the enum name flags are removed, this code
-						// should be deleted.
-						"skipGlobalProtoGeneration": useDefiningModuleForTypedefEnumNames && util.IsYANGBaseType(enumNameSake) && useConsistentNamesForProtoUnionEnums,
-					},
 				},
-			}
-			if useDefiningModuleForTypedefEnumNames && useConsistentNamesForProtoUnionEnums {
-				delete(en.entry.Annotation, "valuePrefix")
+				kind: enumKind,
+				id:   key,
 			}
 		}
 
@@ -159,52 +161,61 @@ func (s *enumSet) enumeratedUnionEntry(e *yang.Entry, compressPaths, noUnderscor
 }
 
 // identityrefBaseTypeFromLeaf retrieves the mapped name of an identityref's
-// base such that it can be used in generated code. The value that is returned
-// is defining module name followed by the CamelCase-ified version of the
-// base's name. This function wraps the identityrefBaseTypeFromIdentity
-// function since it covers the common case that the caller is interested in
-// determining the name from an identityref leaf, rather than directly from the
-// identity.
-func (s *enumSet) identityrefBaseTypeFromLeaf(idr *yang.Entry) (string, error) {
+// base such that it can be used in generated code. The first value returned is
+// the defining module name followed by the CamelCase-ified version of the
+// base's name. The second value returned is a string key that uniquely
+// identifies this enumerated value among all possible enumerated values in the
+// input set of YANG files.
+// This function wraps the identityrefBaseTypeFromIdentity function since it
+// covers the common case that the caller is interested in determining the name
+// from an identityref leaf, rather than directly from the identity.
+func (s *enumSet) identityrefBaseTypeFromLeaf(idr *yang.Entry) (string, string, error) {
 	return s.identityrefBaseTypeFromIdentity(idr.Type.IdentityBase)
 }
 
 // identityrefBaseTypeFromIdentity retrieves the generated type name of the
-// input *yang.Identity. The value returned is based on the defining module
-// followed by the CamelCase-ified version of the identity's name.
-func (s *enumSet) identityrefBaseTypeFromIdentity(i *yang.Identity) (string, error) {
-	definedName, ok := s.uniqueIdentityNames[s.identityBaseKey(i)]
+// input *yang.Identity. The first value returned is the defining module
+// followed by the CamelCase-ified version of the identity's name. The second
+// value returned is a string key that uniquely identifies this enumerated
+// value among all possible enumerated values in the input set of YANG files.
+func (s *enumSet) identityrefBaseTypeFromIdentity(i *yang.Identity) (string, string, error) {
+	key := s.identityBaseKey(i)
+	definedName, ok := s.uniqueIdentityNames[key]
 	if !ok {
-		return "", fmt.Errorf("enumSet: cannot retrieve type name for identity without a name generated (was findEnumSet called?): %+v", i)
+		return "", "", fmt.Errorf("enumSet: cannot retrieve type name for identity without a name generated (was findEnumSet called?): %+v", i)
 	}
-	return definedName, nil
+	return definedName, key, nil
 }
 
 // enumName retrieves the type name of the input enum *yang.Entry that will be
-// used in the generated code.
-func (s *enumSet) enumName(e *yang.Entry, compressPaths, noUnderscores, skipDedup, shortenEnumLeafNames, addEnumeratedUnionSuffix bool, enumOrgPrefixesToTrim []string) (string, error) {
+// used in the generated code, which is the first returned value. The second
+// value returned is a string key that uniquely identifies this enumerated
+// value among all possible enumerated values in the input set of YANG files.
+func (s *enumSet) enumName(e *yang.Entry, compressPaths, noUnderscores, skipDedup, shortenEnumLeafNames, addEnumeratedUnionSuffix bool, enumOrgPrefixesToTrim []string) (string, string, error) {
 	key, _ := s.enumLeafKey(e, compressPaths, noUnderscores, skipDedup, shortenEnumLeafNames, addEnumeratedUnionSuffix, enumOrgPrefixesToTrim)
 	definedName, ok := s.uniqueEnumeratedLeafNames[key]
 	if !ok {
-		return "", fmt.Errorf("enumSet: cannot retrieve type name for enumerated leaf without a name generated (was findEnumSet called?): %v", e.Path())
+		return "", "", fmt.Errorf("enumSet: cannot retrieve type name for enumerated leaf without a name generated (was findEnumSet called?): %v", e.Path())
 	}
-	return definedName, nil
+	return definedName, key, nil
 }
 
 // enumeratedTypedefTypeName retrieves the name of an enumerated typedef (i.e.,
 // a typedef which is either an identityref or an enumeration). The resolved
 // name is prefixed with the prefix supplied. If the type that was supplied
 // within the resolveTypeArgs struct is not a type definition which includes an
-// enumerated type, the MappedType returned is nil, otherwise it should be
-// populated.
-func (s *enumSet) enumeratedTypedefTypeName(args resolveTypeArgs, prefix string, noUnderscores, useDefiningModuleForTypedefEnumNames bool) (*MappedType, error) {
+// enumerated type, the third returned value (boolean) will be false.
+// The second value returned is a string key that uniquely identifies this
+// enumerated value among all possible enumerated values in the input set of
+// YANG files.
+func (s *enumSet) enumeratedTypedefTypeName(args resolveTypeArgs, prefix string, noUnderscores, useDefiningModuleForTypedefEnumNames bool) (string, string, bool, error) {
 	switch args.yangType.Kind {
 	case yang.Yenum, yang.Yidentityref:
 		// In the case of a typedef that specifies an enumeration or identityref
 		// then generate a enumerated type in the Go code according to the contextEntry
 		// which has been provided by the calling code.
 		if args.contextEntry == nil {
-			return nil, fmt.Errorf("error mapping node %s due to lack of context", args.yangType.Name)
+			return "", "", false, fmt.Errorf("error mapping node %s due to lack of context", args.yangType.Name)
 		}
 		// If the type that is specified is not a built-in type (i.e., one of those
 		// types which is defined in RFC6020/RFC7950) then we establish what the type
@@ -212,37 +223,36 @@ func (s *enumSet) enumeratedTypedefTypeName(args resolveTypeArgs, prefix string,
 		// the type that is specified in the schema.
 		definingType, err := util.DefiningType(args.yangType, args.contextEntry.Type)
 		if err != nil {
-			return nil, err
+			return "", "", false, err
 		}
 		enumIsTypedef := args.yangType.Kind == yang.Yenum && !util.IsYANGBaseType(definingType)
 		if !util.IsYANGBaseType(args.yangType) || (useDefiningModuleForTypedefEnumNames && enumIsTypedef) {
-			tn, err := s.typedefEnumeratedName(args, noUnderscores, useDefiningModuleForTypedefEnumNames)
+			tn, key, err := s.typedefEnumeratedName(args, noUnderscores, useDefiningModuleForTypedefEnumNames)
 			if err != nil {
-				return nil, err
+				return "", "", false, err
 			}
 
-			return &MappedType{
-				NativeType:        fmt.Sprintf("%s%s", prefix, tn),
-				IsEnumeratedValue: true,
-			}, nil
+			return fmt.Sprintf("%s%s", prefix, tn), key, true, nil
 		}
 	}
-	return nil, nil
+	return "", "", false, nil
 }
 
 // typedefEnumeratedName retrieves the generated name of the input *yang.Entry
 // which represents a typedef that has an underlying enumerated type (e.g.,
-// identityref or enumeration).
-func (s *enumSet) typedefEnumeratedName(args resolveTypeArgs, noUnderscores, useDefiningModuleForTypedefEnumNames bool) (string, error) {
+// identityref or enumeration), which is the first value returned. The second
+// value returned is a string key that uniquely identifies this enumerated
+// value among all possible enumerated values in the input set of YANG files.
+func (s *enumSet) typedefEnumeratedName(args resolveTypeArgs, noUnderscores, useDefiningModuleForTypedefEnumNames bool) (string, string, error) {
 	typedefKey, _, err := s.enumeratedTypedefKey(args, noUnderscores, useDefiningModuleForTypedefEnumNames)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	definedName, ok := s.uniqueEnumeratedTypedefNames[typedefKey]
 	if !ok {
-		return "", fmt.Errorf("enumSet: cannot retrieve type name for typedef enumeration without a name generated (was findEnumSet called?): %v", args.contextEntry.Path())
+		return "", "", fmt.Errorf("enumSet: cannot retrieve type name for typedef enumeration without a name generated (was findEnumSet called?): %v", args.contextEntry.Path())
 	}
-	return definedName, nil
+	return definedName, typedefKey, nil
 }
 
 // identityBaseKey calculates a unique string key for the input identity.
@@ -272,9 +282,9 @@ func (s *enumSet) enumeratedTypedefKey(args resolveTypeArgs, noUnderscores, useD
 	if (useDefiningModuleForTypedefEnumNames && definingType.Kind == yang.Yunion) || (!useDefiningModuleForTypedefEnumNames && args.contextEntry.Type.Kind == yang.Yunion) {
 		// We specifically say that this is an enumeration within the leaf.
 		if noUnderscores {
-			typeName = fmt.Sprintf("%s%s", definingType.Name, enumeratedUnionSuffix)
+			typeName = fmt.Sprintf("%s%s", definingType.Name, EnumeratedUnionSuffix)
 		} else {
-			typeName = fmt.Sprintf("%s_%s", definingType.Name, enumeratedUnionSuffix)
+			typeName = fmt.Sprintf("%s_%s", definingType.Name, EnumeratedUnionSuffix)
 		}
 	}
 	if args.contextEntry.Node == nil {
@@ -326,7 +336,7 @@ func (s *enumSet) enumLeafKey(e *yang.Entry, compressPaths, noUnderscores, skipD
 			nameElements = append([]string{genutil.ParentModulePrettyName(e.Node, enumOrgPrefixesToTrim...)}, nameElements...)
 		}
 		if addEnumeratedUnionSuffix {
-			nameElements = append(nameElements, enumeratedUnionSuffix)
+			nameElements = append(nameElements, EnumeratedUnionSuffix)
 		}
 		compressName = strings.Join(nameElements, delimiter)
 
@@ -405,7 +415,7 @@ func enumIdentifier(e *yang.Entry, compressPaths bool) string {
 // into a common type.
 // The returned enumSet can be used to query for enum/identity names.
 // The returned map is the set of generated enums to be used for enum code generation.
-func findEnumSet(entries map[string]*yang.Entry, compressPaths, noUnderscores, skipEnumDedup, shortenEnumLeafNames, useDefiningModuleForTypedefEnumNames, appendEnumSuffixForSimpleUnionEnums, useConsistentNamesForProtoUnionEnums bool, enumOrgPrefixesToTrim []string) (*enumSet, map[string]*yangEnum, []error) {
+func findEnumSet(entries map[string]*yang.Entry, compressPaths, noUnderscores, skipEnumDedup, shortenEnumLeafNames, useDefiningModuleForTypedefEnumNames, appendEnumSuffixForSimpleUnionEnums bool, enumOrgPrefixesToTrim []string) (*enumSet, map[string]*yangEnum, []error) {
 	validEnums := make(map[string]*yang.Entry)
 	var enumPaths []string
 	var errs []error
@@ -522,7 +532,7 @@ func findEnumSet(entries map[string]*yang.Entry, compressPaths, noUnderscores, s
 		case e.Type.Name == "union", len(e.Type.Type) > 0 && !util.IsYANGBaseType(e.Type):
 			// Calculate any enumerated types that exist within a union, whether it
 			// is a directly defined union, or a non-builtin typedef.
-			es, err := s.enumSet.enumeratedUnionEntry(e, compressPaths, noUnderscores, skipEnumDedup, shortenEnumLeafNames, useDefiningModuleForTypedefEnumNames, appendEnumSuffixForSimpleUnionEnums, useConsistentNamesForProtoUnionEnums, enumOrgPrefixesToTrim)
+			es, err := s.enumSet.enumeratedUnionEntry(e, compressPaths, noUnderscores, skipEnumDedup, shortenEnumLeafNames, useDefiningModuleForTypedefEnumNames, appendEnumSuffixForSimpleUnionEnums, enumOrgPrefixesToTrim)
 			if err != nil {
 				errs = append(errs, err)
 				continue
@@ -541,7 +551,7 @@ func findEnumSet(entries map[string]*yang.Entry, compressPaths, noUnderscores, s
 				errs = append(errs, fmt.Errorf("entry %s was an identity with a nil base", e.Name))
 				continue
 			}
-			idBaseName, err := s.enumSet.identityrefBaseTypeFromLeaf(e)
+			idBaseName, key, err := s.enumSet.identityrefBaseTypeFromLeaf(e)
 			if err != nil {
 				errs = append(errs, err)
 				continue
@@ -550,6 +560,8 @@ func findEnumSet(entries map[string]*yang.Entry, compressPaths, noUnderscores, s
 				genEnums[idBaseName] = &yangEnum{
 					name:  idBaseName,
 					entry: e,
+					kind:  IdentityType,
+					id:    key,
 				}
 			}
 		case e.Type.Name == "enumeration":
@@ -559,7 +571,7 @@ func findEnumSet(entries map[string]*yang.Entry, compressPaths, noUnderscores, s
 			// in two places, then we do not want to have multiple enumerated types
 			// that represent this leaf), then we do not have errors if duplicates
 			// occur, we simply perform de-duplication at this stage.
-			enumName, err := s.enumSet.enumName(e, compressPaths, noUnderscores, skipEnumDedup, shortenEnumLeafNames, false, enumOrgPrefixesToTrim)
+			enumName, key, err := s.enumSet.enumName(e, compressPaths, noUnderscores, skipEnumDedup, shortenEnumLeafNames, false, enumOrgPrefixesToTrim)
 			if err != nil {
 				errs = append(errs, err)
 				continue
@@ -568,19 +580,27 @@ func findEnumSet(entries map[string]*yang.Entry, compressPaths, noUnderscores, s
 				genEnums[enumName] = &yangEnum{
 					name:  enumName,
 					entry: e,
+					kind:  SimpleEnumerationType,
+					id:    key,
 				}
 			}
 		default:
 			// This is a type which is defined through a typedef.
-			typeName, err := s.enumSet.typedefEnumeratedName(resolveTypeArgs{contextEntry: e, yangType: e.Type}, noUnderscores, useDefiningModuleForTypedefEnumNames)
+			typeName, key, err := s.enumSet.typedefEnumeratedName(resolveTypeArgs{contextEntry: e, yangType: e.Type}, noUnderscores, useDefiningModuleForTypedefEnumNames)
 			if err != nil {
 				errs = append(errs, err)
 				continue
 			}
 			if _, ok := genEnums[typeName]; !ok {
+				kind := DerivedEnumerationType
+				if e.Type.IdentityBase != nil {
+					kind = IdentityType
+				}
 				genEnums[typeName] = &yangEnum{
 					name:  typeName,
 					entry: e,
+					kind:  kind,
+					id:    key,
 				}
 			}
 		}

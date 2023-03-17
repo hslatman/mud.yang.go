@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/kylelemons/godebug/pretty"
 	"github.com/openconfig/goyang/pkg/yang"
 
@@ -451,7 +450,7 @@ func DeepEqualDerefPtrs(a, b interface{}) bool {
 	if !IsValueNil(b) && reflect.TypeOf(b).Kind() == reflect.Ptr {
 		bb = reflect.ValueOf(b).Elem().Interface()
 	}
-	return cmp.Equal(aa, bb)
+	return reflect.DeepEqual(aa, bb)
 }
 
 // ChildSchema returns the schema for the struct field f, if f contains a valid
@@ -459,9 +458,32 @@ func DeepEqualDerefPtrs(a, b interface{}) bool {
 // if the struct tag is invalid, or nil if tag is valid but the schema is not
 // found in the tree at the specified path.
 func ChildSchema(schema *yang.Entry, f reflect.StructField) (*yang.Entry, error) {
+	return childSchema(schema, f, false)
+}
+
+// ChildSchemaPreferShadow returns the shadow schema (if exists) or schema for
+// the struct field f, if f contains a valid "shadow-path" or "path" tag and
+// the schema path is found in the schema tree. It returns an error if the
+// struct tag is invalid, or nil if tag is valid but the schema is not found in
+// the tree at the specified path.
+func ChildSchemaPreferShadow(schema *yang.Entry, f reflect.StructField) (*yang.Entry, error) {
+	return childSchema(schema, f, true)
+}
+
+// childSchema returns the schema for the struct field f, if f contains a valid
+// path tag and the schema path is found in the schema tree. It returns an error
+// if the struct tag is invalid, or nil if tag is valid but the schema is not
+// found in the tree at the specified path.
+//
+// If preferShadowPath is false, the path values from the "path" tag are used.
+// If preferShadowPath is true and the field has a "shadow-path" tag, then the
+// path values from the "shadow-path" tag are used; if the field doesn't have
+// the "shadow-path" tag, then the path values from the "path" tag are used.
+func childSchema(schema *yang.Entry, f reflect.StructField, preferShadowPath bool) (*yang.Entry, error) {
 	pathTag, _ := f.Tag.Lookup("path")
-	DbgSchema("childSchema for schema %s, field %s, tag %s\n", schema.Name, f.Name, pathTag)
-	p, err := RelativeSchemaPath(f)
+	shadowPathTag, _ := f.Tag.Lookup("shadow-path")
+	DbgSchema("childSchema for schema %s, field %s, path tag %s, shadow-path tag\n", schema.Name, f.Name, pathTag, shadowPathTag)
+	p, err := relativeSchemaPath(f, preferShadowPath)
 	if err != nil {
 		return nil, err
 	}
@@ -599,10 +621,12 @@ type FieldIteratorFunc func(ni *NodeInfo, in, out interface{}) Errors
 // leafref. Fields that are present in value that are explicitly noted not to
 // have a corresponding schema (e.g., annotation/metadata fields added by ygen)
 // are skipped during traversal.
-//   schema is the schema corresponding to value.
-//   in, out are passed to the iterator function and can be used to carry state
-//     and return results from the iterator.
-//   iterFunction is executed on each scalar field.
+//
+// - schema is the schema corresponding to value.
+// - in, out are passed to the iterator function and can be used to carry state
+// and return results from the iterator.
+// - iterFunction is executed on each scalar field.
+//
 // It returns a slice of errors encountered while processing the struct.
 func ForEachField(schema *yang.Entry, value interface{}, in, out interface{}, iterFunction FieldIteratorFunc) Errors {
 	if IsValueNil(value) {
@@ -615,8 +639,9 @@ func ForEachField(schema *yang.Entry, value interface{}, in, out interface{}, it
 // may be any Go type) and executes iterFunction on each field that is present
 // within the supplied schema. Fields that are explicitly noted not to have
 // a schema (e.g., annotation fields) are skipped.
-//   in, out are passed through from the caller to the iteration and can be used
-//     arbitrarily in the iteration function to carry state and results.
+//
+// - in, out are passed through from the caller to the iteration and can be used
+// arbitrarily in the iteration function to carry state and results.
 func forEachFieldInternal(ni *NodeInfo, in, out interface{}, iterFunction FieldIteratorFunc) Errors {
 	if IsValueNil(ni) {
 		return nil
@@ -682,12 +707,6 @@ func forEachFieldInternal(ni *NodeInfo, in, out interface{}, iterFunction FieldI
 					continue
 				}
 				nn.PathFromParent = p
-				// In the case of a map/slice, the path is of the form
-				// "container/element" in the compressed schema, so trim off
-				// any extra path elements in this case.
-				if IsTypeSlice(sf.Type) || IsTypeMap(sf.Type) {
-					nn.PathFromParent = p[0:1]
-				}
 				switch in.(type) {
 				case *PathQueryNodeMemo: // Memoization of path queries requested.
 					errs = AppendErrs(errs, forEachFieldInternal(nn, newPathQueryMemo(), out, iterFunction))
@@ -1045,11 +1064,12 @@ func getNodesList(schema *yang.Entry, root interface{}, path *gpb.Path) ([]inter
 					if !fv.IsValid() {
 						return nil, nil, fmt.Errorf("element struct type %s does not contain key field %s", k.Type(), kfn)
 					}
-					nv := fv
-					if fv.Type().Kind() == reflect.Ptr {
-						// Ptr values are deferenced in key struct.
-						nv = nv.Elem()
-					}
+					// FIXME(wenbli): This block was here but is not doing anything. We need to ensure that no functionality would be missing by removing it.
+					//nv := fv
+					//if fv.Type().Kind() == reflect.Ptr {
+					//	// Ptr values are deferenced in key struct.
+					//	nv = nv.Elem()
+					//}
 					kf, ok := listElementType.FieldByName(kfn)
 					if !ok {
 						return nil, nil, fmt.Errorf("element struct type %s does not contain key field %s", k.Type(), kfn)

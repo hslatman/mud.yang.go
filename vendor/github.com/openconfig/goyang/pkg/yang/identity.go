@@ -16,14 +16,15 @@ package yang
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 )
 
 // This file implements data structures and functions that relate to the
 // identity type.
 
-// identityDictionary stores a global set of identities that have been resolved
-// to be identified by their module and name.
+// identityDictionary stores a set of identities across all parsed Modules that
+// have been resolved to be identified by their module and name.
 type identityDictionary struct {
 	mu sync.Mutex
 	// dict is a global cache of identities keyed by
@@ -32,9 +33,6 @@ type identityDictionary struct {
 	// in a submodule, then the parent module name is used instead.
 	dict map[string]resolvedIdentity
 }
-
-// Global dictionary of resolved identities
-var identities = identityDictionary{dict: map[string]resolvedIdentity{}}
 
 // resolvedIdentity is an Identity that has been disambiguated.
 type resolvedIdentity struct {
@@ -89,13 +87,14 @@ func (mod *Module) findIdentityBase(baseStr string) (*resolvedIdentity, []error)
 	basePrefix, baseName := getPrefix(baseStr)
 	rootPrefix := mod.GetPrefix()
 	source := Source(mod)
+	typeDict := mod.Modules.typeDict
 
 	switch basePrefix {
 	case "", rootPrefix:
 		// This is a local identity which is defined within the current
 		// module
 		keyName := fmt.Sprintf("%s:%s", module(mod).Name, baseName)
-		base, ok = identities.dict[keyName]
+		base, ok = typeDict.identities.dict[keyName]
 		if !ok {
 			errs = append(errs, fmt.Errorf("%s: can't resolve the local base %s as %s", source, baseStr, keyName))
 		}
@@ -108,7 +107,7 @@ func (mod *Module) findIdentityBase(baseStr string) (*resolvedIdentity, []error)
 			break
 		}
 		// The identity we are looking for is modulename:basename.
-		if id, ok := identities.dict[fmt.Sprintf("%s:%s", module(extmod).Name, baseName)]; ok {
+		if id, ok := typeDict.identities.dict[fmt.Sprintf("%s:%s", module(extmod).Name, baseName)]; ok {
 			base = id
 			break
 		}
@@ -123,8 +122,8 @@ func (mod *Module) findIdentityBase(baseStr string) (*resolvedIdentity, []error)
 }
 
 func (ms *Modules) resolveIdentities() []error {
-	defer identities.mu.Unlock()
-	identities.mu.Lock()
+	defer ms.typeDict.identities.mu.Unlock()
+	ms.typeDict.identities.mu.Lock()
 
 	var errs []error
 
@@ -135,7 +134,7 @@ func (ms *Modules) resolveIdentities() []error {
 	for _, mod := range ms.Modules {
 		for _, i := range mod.Identities() {
 			keyName, r := newResolvedIdentity(mod, i)
-			identities.dict[keyName] = *r
+			ms.typeDict.identities.dict[keyName] = *r
 		}
 
 		// Hoist up all identities in our included submodules.
@@ -147,7 +146,7 @@ func (ms *Modules) resolveIdentities() []error {
 			}
 			for _, i := range in.Module.Identities() {
 				keyName, r := newResolvedIdentity(in.Module, i)
-				identities.dict[keyName] = *r
+				ms.typeDict.identities.dict[keyName] = *r
 			}
 		}
 	}
@@ -156,7 +155,7 @@ func (ms *Modules) resolveIdentities() []error {
 	// fully resolved identity statement. The intention here is to make sure
 	// that the Children slice is fully populated with pointers to all identities
 	// that have a base, so that we can do inheritance of these later.
-	for _, i := range identities.dict {
+	for _, i := range ms.typeDict.identities.dict {
 		if i.Identity.Base != nil {
 			// This identity inherits from one or more other identities.
 
@@ -176,11 +175,14 @@ func (ms *Modules) resolveIdentities() []error {
 	}
 
 	// Do a final sweep through the identities to build up their children.
-	for _, i := range identities.dict {
+	for _, i := range ms.typeDict.identities.dict {
 		newValues := []*Identity{}
 		for _, j := range i.Identity.Values {
 			newValues = addChildren(j, newValues)
 		}
+		sort.SliceStable(newValues, func(j, k int) bool {
+			return newValues[j].Name < newValues[k].Name
+		})
 		i.Identity.Values = newValues
 	}
 
