@@ -79,17 +79,20 @@ type deviationPresence struct {
 // Errors is not nil then it means semantic errors existed while converting the
 // AST, in which case the only other valid field other than Errors is Node.
 type Entry struct {
-	Parent      *Entry    `json:"-"`
-	Node        Node      `json:"-"` // the base node this Entry was derived from.
-	Name        string    // our name, same as the key in our parent Dirs
-	Description string    `json:",omitempty"` // description from node, if any
-	Default     string    `json:",omitempty"` // default from node, if any
-	Units       string    `json:",omitempty"` // units associated with the type, if any
-	Errors      []error   `json:"-"`          // list of errors encountered on this node
-	Kind        EntryKind // kind of Entry
-	Config      TriState  // config state of this entry, if known
-	Prefix      *Value    `json:",omitempty"` // prefix to use from this point down
-	Mandatory   TriState  `json:",omitempty"` // whether this entry is mandatory in the tree
+	Parent      *Entry `json:"-"`
+	Node        Node   `json:"-"` // the base node this Entry was derived from.
+	Name        string // our name, same as the key in our parent Dirs
+	Description string `json:",omitempty"` // description from node, if any
+	// Default value for the node, if any. Note that only leaf-lists may
+	// have more than one value. For all other types, use the
+	// SingleDefaultValue() method to access the default value.
+	Default   []string  `json:",omitempty"`
+	Units     string    `json:",omitempty"` // units associated with the type, if any
+	Errors    []error   `json:"-"`          // list of errors encountered on this node
+	Kind      EntryKind // kind of Entry
+	Config    TriState  // config state of this entry, if known
+	Prefix    *Value    `json:",omitempty"` // prefix to use from this point down
+	Mandatory TriState  `json:",omitempty"` // whether this entry is mandatory in the tree
 
 	// Fields associated with directory nodes
 	Dir map[string]*Entry `json:",omitempty"`
@@ -441,16 +444,6 @@ func (e *Entry) GetWhenXPath() (string, bool) {
 	return "", false
 }
 
-// entryCache is used to prevent unnecessary recursion into previously
-// converted nodes.
-var entryCache = map[Node]*Entry{}
-
-// mergedSubmodule is used to prevent re-parsing a submodule that has already
-// been merged into a particular entity when circular dependencies are being
-// ignored. The keys of the map are a string that is formed by concatenating
-// the name of the including (sub)module and the included submodule.
-var mergedSubmodule = map[string]bool{}
-
 // deviationType specifies an enumerated value covering the different substatements
 // to the deviate statement.
 type deviationType int64
@@ -542,11 +535,11 @@ func ToEntry(n Node) (e *Entry) {
 		}
 	}
 	ms := RootNode(n).Modules
-	if e := entryCache[n]; e != nil {
+	if e := ms.entryCache[n]; e != nil {
 		return e
 	}
 	defer func() {
-		entryCache[n] = e
+		ms.entryCache[n] = e
 	}()
 
 	// Copy in the extensions from our Node, if any.
@@ -586,7 +579,7 @@ func ToEntry(n Node) (e *Entry) {
 			e.Description = s.Description.Name
 		}
 		if s.Default != nil {
-			e.Default = s.Default.Name
+			e.Default = []string{s.Default.Name}
 		}
 		e.Type = s.Type.YangType
 		e.Config, err = tristateValue(s.Config)
@@ -625,6 +618,11 @@ func ToEntry(n Node) (e *Entry) {
 		if e.ListAttr.MinElements, err = semCheckMinElements(s.MinElements); err != nil {
 			e.addError(err)
 		}
+		if len(s.Default) != 0 {
+			for _, def := range s.Default {
+				e.Default = append(e.Default, def.Name)
+			}
+		}
 		e.Prefix = getRootPrefix(e)
 		return e
 	case *Uses:
@@ -660,7 +658,7 @@ func ToEntry(n Node) (e *Entry) {
 	case *Choice:
 		e.Kind = ChoiceEntry
 		if s.Default != nil {
-			e.Default = s.Default.Name
+			e.Default = []string{s.Default.Name}
 		}
 	case *Case:
 		e.Kind = CaseEntry
@@ -762,14 +760,14 @@ func ToEntry(n Node) (e *Entry) {
 				includedToSrc := n.NName() + ":" + a.Module.Name
 
 				switch {
-				case mergedSubmodule[srcToIncluded]:
+				case ms.mergedSubmodule[srcToIncluded]:
 					// We have already merged this module, so don't try and do it
 					// again.
 					continue
-				case !mergedSubmodule[includedToSrc] && a.Module.NName() != n.NName():
+				case !ms.mergedSubmodule[includedToSrc] && a.Module.NName() != n.NName():
 					// We have not merged A->B, and B != B hence go ahead and merge.
 					includedToParent := a.Module.Name + ":" + a.Module.BelongsTo.Name
-					if mergedSubmodule[includedToParent] {
+					if ms.mergedSubmodule[includedToParent] {
 						// Don't try and re-import submodules that have already been imported
 						// into the top-level module. Note that this ensures that we get to the
 						// top the tree (whichever the actual module for the chain of
@@ -778,10 +776,10 @@ func ToEntry(n Node) (e *Entry) {
 						// walking through a sub-cycle of the include graph.
 						continue
 					}
-					mergedSubmodule[srcToIncluded] = true
-					mergedSubmodule[includedToParent] = true
+					ms.mergedSubmodule[srcToIncluded] = true
+					ms.mergedSubmodule[includedToParent] = true
 					e.merge(a.Module.Prefix, nil, ToEntry(a.Module))
-				case ParseOptions.IgnoreSubmoduleCircularDependencies:
+				case ms.ParseOptions.IgnoreSubmoduleCircularDependencies:
 					continue
 				default:
 					e.addError(fmt.Errorf("%s: has a circular dependency, importing %s", n.NName(), a.Module.NName()))
@@ -852,7 +850,7 @@ func ToEntry(n Node) (e *Entry) {
 			for _, a := range fv.Interface().([]*Uses) {
 				grouping := ToEntry(a)
 				e.merge(nil, nil, grouping)
-				if ParseOptions.StoreUses {
+				if ms.ParseOptions.StoreUses {
 					e.Uses = append(e.Uses, &UsesStmt{a, grouping.shallowDup()})
 				}
 			}
@@ -876,18 +874,31 @@ func ToEntry(n Node) (e *Entry) {
 		// Keywords that do not need to be handled as an Entry as they are added
 		// to other dictionaries.
 		case "default":
-			d, ok := fv.Interface().(*Value)
-			if !ok {
-				e.addError(fmt.Errorf("%s: unexpected default type in %s:%s", Source(n), n.Kind(), n.NName()))
+			switch e.Kind {
+			case LeafEntry, ChoiceEntry:
+				// default is handled separately for leaf, leaf-list and choice
+			case DeviateEntry:
+				// handle deviate statements.
+				// TODO(wenovus): support refine statement's default substatement.
+				d, ok := fv.Interface().(*Value)
+				if !ok {
+					e.addError(fmt.Errorf("%s: unexpected default type in %s:%s", Source(n), n.Kind(), n.NName()))
+				}
+				// TODO(wenovus): deviate statement and refine statement should
+				// allow multiple default substatements for leaf-list types (YANG1.1).
+				if d != nil {
+					e.Default = []string{d.asString()}
+				}
 			}
-			e.Default = d.asString()
 		case "typedef":
 			continue
 		case "deviation":
 			if a := fv.Interface().([]*Deviation); a != nil {
 				for _, d := range a {
+					deviatedEntry := ToEntry(d)
+					e.importErrors(deviatedEntry)
 					e.Deviations = append(e.Deviations, &DeviatedEntry{
-						Entry:        ToEntry(d),
+						Entry:        deviatedEntry,
 						DeviatedPath: d.Statement().Argument,
 					})
 
@@ -1087,7 +1098,7 @@ func (e *Entry) Augment(addErrors bool) (processed, skipped int) {
 
 // ApplyDeviate walks the deviations within the supplied entry, and applies them to the
 // schema.
-func (e *Entry) ApplyDeviate() []error {
+func (e *Entry) ApplyDeviate(deviateOpts ...DeviateOpt) []error {
 	var errs []error
 	appendErr := func(err error) { errs = append(errs, err) }
 	for _, d := range e.Deviations {
@@ -1105,16 +1116,21 @@ func (e *Entry) ApplyDeviate() []error {
 						deviatedNode.Config = devSpec.Config
 					}
 
-					if devSpec.Default != "" {
+					if len(devSpec.Default) > 0 {
 						switch dt {
 						case DeviationAdd:
-							if deviatedNode.Default != "" {
-								appendErr(fmt.Errorf("tried to deviate add a default statement when one already exists: %q", deviatedNode.Default))
-							} else {
-								deviatedNode.Default = devSpec.Default
+							switch {
+							case deviatedNode.IsLeafList():
+								deviatedNode.Default = append(deviatedNode.Default, devSpec.Default...)
+							case len(devSpec.Default) > 1:
+								appendErr(fmt.Errorf("%s: tried to add more than one default to a non-leaflist entry at deviation", Source(e.Node)))
+							case len(deviatedNode.Default) != 0:
+								appendErr(fmt.Errorf("%s: tried to add a default value to an entry that already has a default value", Source(e.Node)))
+							case len(devSpec.Default) == 1 && len(deviatedNode.Default) == 0:
+								deviatedNode.Default = append([]string{}, devSpec.Default[0])
 							}
 						case DeviationReplace:
-							deviatedNode.Default = devSpec.Default
+							deviatedNode.Default = append([]string{}, devSpec.Default...)
 						}
 					}
 
@@ -1152,17 +1168,27 @@ func (e *Entry) ApplyDeviate() []error {
 						appendErr(fmt.Errorf("%s: node %s does not have a valid parent, but deviate not-supported references one", Source(e.Node), e.Name))
 						continue
 					}
-					dp.delete(deviatedNode.Name)
+					if !hasIgnoreDeviateNotSupported(deviateOpts) {
+						dp.delete(deviatedNode.Name)
+					}
 				case DeviationDelete:
 					if devSpec.Config != TSUnset {
 						deviatedNode.Config = TSUnset
 					}
 
-					if devSpec.Default != "" {
-						if devSpec.Default == deviatedNode.Default {
-							deviatedNode.Default = ""
-						} else {
-							appendErr(fmt.Errorf("%s: tried to deviate delete a default statement that doesn't exist or with a non-matching keyword", Source(e.Node)))
+					if len(devSpec.Default) > 0 {
+						switch {
+						case deviatedNode.IsLeafList():
+							// It is unclear from RFC7950 on how deviate delete works
+							// when there are duplicate leaf-list values in config-false leafs.
+							// TODO(wenbli): Add support for deleting default values when the leaf-list is a config leaf (duplicates are not allowed).
+							appendErr(fmt.Errorf("%s: deviate delete on default statements unsupported for leaf-lists, please use replace instead", Source(e.Node)))
+						case len(deviatedNode.Default) == 0:
+							appendErr(fmt.Errorf("%s: tried to deviate delete a default statement that doesn't exist", Source(e.Node)))
+						case devSpec.Default[0] != deviatedNode.Default[0]:
+							appendErr(fmt.Errorf("%s: tried to deviate delete a default statement with a non-matching keyword", Source(e.Node)))
+						default:
+							deviatedNode.Default = nil
 						}
 					}
 
@@ -1532,17 +1558,40 @@ func errorSort(errors []error) []error {
 	return errors[:i]
 }
 
-// DefaultValue returns the schema default value for e, if any. If the leaf
-// has no explicit default, its type default (if any) will be used.
-func (e *Entry) DefaultValue() string {
-	if e.Default != "" {
-		return e.Default
-	} else if typ := e.Type; typ != nil {
-		if leaf, ok := e.Node.(*Leaf); ok {
-			if leaf.Mandatory == nil || leaf.Mandatory.Name == "false" {
-				return typ.Default
+// SingleDefaultValue returns the single schema default value for e and a bool
+// indicating whether the entry contains one and only one default value. The
+// empty string is returned when the entry has zero or multiple default values.
+// This function is useful for determining the default values of a
+// non-leaf-list leaf entry.  If the leaf has no explicit default, its type
+// default (if any) will be used.
+//
+// For a leaf-list entry, use DefaultValues() instead.
+func (e *Entry) SingleDefaultValue() (string, bool) {
+	if dvals := e.DefaultValues(); len(dvals) == 1 {
+		return dvals[0], true
+	}
+	return "", false
+}
+
+// DefaultValues returns all default values for the leaf entry. This is useful
+// for determining the default values for a leaf-list, which may have more than
+// one default value. If the entry has no explicit default, its type default
+// (if any) will be used. nil is returned when no default value exists.
+//
+// For a leaf entry, use SingleDefaultValue() instead.
+func (e *Entry) DefaultValues() []string {
+	if len(e.Default) > 0 {
+		return append([]string{}, e.Default...)
+	}
+
+	if typ := e.Type; typ != nil && typ.HasDefault {
+		switch leaf := e.Node.(type) {
+		case *Leaf:
+			switch {
+			case e.IsLeaf() && (leaf.Mandatory == nil || leaf.Mandatory.Name == "false"), e.IsLeafList() && e.ListAttr.MinElements == 0:
+				return []string{typ.Default}
 			}
 		}
 	}
-	return ""
+	return nil
 }

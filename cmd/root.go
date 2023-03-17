@@ -22,9 +22,6 @@ func Execute() {
 }
 
 func init() {
-
 	rootCmd.AddCommand(readCmd)
 	rootCmd.AddCommand(validateCmd)
-	rootCmd.AddCommand(generateCmd)
-
 }

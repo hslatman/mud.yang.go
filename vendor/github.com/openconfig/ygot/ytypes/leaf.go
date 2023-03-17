@@ -29,6 +29,8 @@ import (
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
+//lint:file-ignore SA1019 We still need to tolerate unmarshalling decimal_val and float_val.
+
 // Refer to: https://tools.ietf.org/html/rfc6020#section-7.6.
 
 // validateLeaf validates the value of a leaf struct against the given schema.
@@ -108,110 +110,112 @@ func validateLeaf(inSchema *yang.Entry, value interface{}) util.Errors {
 }
 
 /*
- validateUnion validates a union type and returns any validation errors.
- Unions have two types of possible representation in the data tree, which
- depends on the schema. The first case has alternatives with the same Go type,
- but different YANG types (possibly with different constraints):
+validateUnion validates a union type and returns any validation errors.
+Unions have two types of possible representation in the data tree, which
+depends on the schema. The first case has alternatives with the same Go type,
+but different YANG types (possibly with different constraints):
 
- Name:        "address",
- Kind:        yang.Yleaf,
- Dir:         {},
- Type:        {
-   Name:             "ip-address",
-   Kind:             yang.Yunion,
-   Type:             [
-   {
-           Name:             "ipv4-address",
-           Kind:             yang.Ystring,
-           POSIXPattern:          [...pattern...],
-   },
-   {
-           Name:             "ipv6-address",
-           Kind:             yang.Ystring,
-           POSIXPattern:          [...pattern...],
-           Type:             [],
-   }]
- }
+Name:        "address",
+Kind:        yang.Yleaf,
+Dir:         {},
 
- In this case, the data tree will look like this:
+	Type:        {
+	  Name:             "ip-address",
+	  Kind:             yang.Yunion,
+	  Type:             [
+	  {
+	          Name:             "ipv4-address",
+	          Kind:             yang.Ystring,
+	          POSIXPattern:          [...pattern...],
+	  },
+	  {
+	          Name:             "ipv6-address",
+	          Kind:             yang.Ystring,
+	          POSIXPattern:          [...pattern...],
+	          Type:             [],
+	  }]
+	}
 
- type System_Ntp_Server struct {
-   Address *string `path:"address"`
- }
+In this case, the data tree will look like this:
 
- The validation will check against all the schema nodes that match the YANG
- type corresponding to the Go type and return an error if none match.
+	type System_Ntp_Server struct {
+	  Address *string `path:"address"`
+	}
 
- In the second case, where multiple Go types are present, the data tree has an
- additional struct layer. In this case, the struct field is compared against
- all YANG schemas that match the Go type of the selected wrapping struct e.g.
+The validation will check against all the schema nodes that match the YANG
+type corresponding to the Go type and return an error if none match.
 
- Name:        "port",
- Kind:        yang.Yleafref,
- Dir:         {},
- Type:        {
-   Name:             "port",
-   Kind:             yang.Yunion,
-   Type:             [
-   {
-           Name:             "port-string",
-           Kind:             yang.Ystring,
-           POSIXPattern:          [...pattern...],
-   },
-   {
-           Name:             "port-integer",
-           Kind:             yang.Yuint16,
-           Type:             [],
-   }]
- }
+In the second case, where multiple Go types are present, the data tree has an
+additional struct layer. In this case, the struct field is compared against
+all YANG schemas that match the Go type of the selected wrapping struct e.g.
 
- -- Corresponding structs data tree --
+Name:        "port",
+Kind:        yang.Yleafref,
+Dir:         {},
 
- type System_Ntp_Server struct {
-   Port Port `path:"port"`
- }
+	Type:        {
+	  Name:             "port",
+	  Kind:             yang.Yunion,
+	  Type:             [
+	  {
+	          Name:             "port-string",
+	          Kind:             yang.Ystring,
+	          POSIXPattern:          [...pattern...],
+	  },
+	  {
+	          Name:             "port-integer",
+	          Kind:             yang.Yuint16,
+	          Type:             [],
+	  }]
+	}
 
- type Port interface {
-   IsPort()
- }
+-- Corresponding structs data tree --
 
- type Port_String struct {
-   PortString *string
- }
+	type System_Ntp_Server struct {
+	  Port Port `path:"port"`
+	}
 
- func (Port_String a) IsPort() {}
+	type Port interface {
+	  IsPort()
+	}
 
- type Port_Integer struct {
-   PortInteger *uint16
- }
+	type Port_String struct {
+	  PortString *string
+	}
 
- func (Port_Integer a) IsPort() {}
+func (Port_String a) IsPort() {}
 
- In this case, the appropriate schema is uniquely selected based on the struct
- path.
+	type Port_Integer struct {
+	  PortInteger *uint16
+	}
 
- A union may be nested. e.g. (shown as YANG schema for brevity)
+func (Port_Integer a) IsPort() {}
 
- leaf foo {
-   type union {
-     type derived_string_type1;
-     type union {
-       type derived_string_type2;
-       type derived_string_type3;
-     }
-   }
- }
+In this case, the appropriate schema is uniquely selected based on the struct
+path.
 
- The data tree will look like this:
+A union may be nested. e.g. (shown as YANG schema for brevity)
 
- type SomeContainer struct {
-   Foo *string `path:"foo"`
- }
+	leaf foo {
+	  type union {
+	    type derived_string_type1;
+	    type union {
+	      type derived_string_type2;
+	      type derived_string_type3;
+	    }
+	  }
+	}
 
- In this case, the value for Foo would be recursively evaluated against any
- of the matching types in any contained unions.
- validateUnion supports any combination of nested union types and multiple
- choices with the same type that are not represented by a named wrapper struct.
+The data tree will look like this:
+
+	type SomeContainer struct {
+	  Foo *string `path:"foo"`
+	}
+
+In this case, the value for Foo would be recursively evaluated against any
+of the matching types in any contained unions.
+validateUnion supports any combination of nested union types and multiple
+choices with the same type that are not represented by a named wrapper struct.
 */
 func validateUnion(schema *yang.Entry, value interface{}) util.Errors {
 	if util.IsValueNil(value) {
@@ -335,8 +339,9 @@ type Binary []byte
 
 // unmarshalLeaf unmarshals a scalar value (determined by json.Unmarshal) into
 // the parent containing the leaf.
-//   schema points to the schema for the leaf type.
-func unmarshalLeaf(inSchema *yang.Entry, parent interface{}, value interface{}, enc Encoding) error {
+//
+// - schema points to the schema for the leaf type.
+func unmarshalLeaf(inSchema *yang.Entry, parent interface{}, value interface{}, enc Encoding, opts ...UnmarshalOpt) error {
 	if util.IsValueNil(value) {
 		if enc == JSONEncoding {
 			return nil
@@ -351,7 +356,7 @@ func unmarshalLeaf(inSchema *yang.Entry, parent interface{}, value interface{}, 
 
 	util.DbgPrint("unmarshalLeaf value %v, type %T, into parent type %T, schema name %s", util.ValueStrDebug(value), value, parent, inSchema.Name)
 
-	fieldName, _, err := schemaToStructFieldName(inSchema, parent)
+	fieldName, _, err := schemaToStructFieldName(inSchema, parent, hasPreferShadowPath(opts))
 	if err != nil {
 		return err
 	}
@@ -637,10 +642,11 @@ func schemaToEnumTypes(schema *yang.Entry, t reflect.Type) ([]reflect.Type, erro
 
 // unmarshalScalar unmarshals value, which is the Go type from json.Unmarshal,
 // to the corresponding value used in gostructs.
-//   parent is the parent struct containing the field being unmarshaled.
-//     Required if the unmarshaled type is an enum.
-//   fieldName is the name of the field being unmarshaled.
-//     Required if the unmarshaled type is an enum.
+//
+// - parent is the parent struct containing the field being unmarshaled.
+// Required if the unmarshaled type is an enum.
+// - fieldName is the name of the field being unmarshaled.
+// Required if the unmarshaled type is an enum.
 func unmarshalScalar(parent interface{}, schema *yang.Entry, fieldName string, value interface{}, enc Encoding) (interface{}, error) {
 	if util.IsValueNil(value) {
 		if enc == JSONEncoding {
@@ -768,7 +774,7 @@ func sanitizeGNMI(parent interface{}, schema *yang.Entry, fieldName string, tv *
 
 	var ok bool
 	if ok = gNMIToYANGTypeMatches(ykind, tv, jsonTolerance); !ok {
-		return nil, fmt.Errorf("failed to unmarshal %v into %v", tv.GetValue(), yang.TypeKindToName[ykind])
+		return nil, fmt.Errorf("failed to unmarshal (%T, %v) into %v", tv.GetValue(), tv.GetValue(), yang.TypeKindToName[ykind])
 	}
 
 	switch ykind {
@@ -815,6 +821,8 @@ func sanitizeGNMI(parent interface{}, schema *yang.Entry, fieldName string, tv *
 			return fv, nil
 		case *gpb.TypedValue_FloatVal:
 			return float64(v.FloatVal), nil
+		case *gpb.TypedValue_DoubleVal:
+			return float64(v.DoubleVal), nil
 		}
 	}
 	return nil, fmt.Errorf("%v type isn't expected for GNMIEncoding", yang.TypeKindToName[ykind])
@@ -848,9 +856,12 @@ func gNMIToYANGTypeMatches(ykind yang.TypeKind, tv *gpb.TypedValue, jsonToleranc
 	case yang.Ybinary:
 		_, ok = tv.GetValue().(*gpb.TypedValue_BytesVal)
 	case yang.Ydecimal64:
-		_, ok = tv.GetValue().(*gpb.TypedValue_DecimalVal)
+		_, ok = tv.GetValue().(*gpb.TypedValue_DoubleVal)
 		if !ok {
 			_, ok = tv.GetValue().(*gpb.TypedValue_FloatVal)
+			if !ok {
+				_, ok = tv.GetValue().(*gpb.TypedValue_DecimalVal)
+			}
 		}
 	}
 	return ok
