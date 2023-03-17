@@ -34,7 +34,7 @@ var validateCmd = &cobra.Command{
 			IgnoreMissingData: false,
 			Log:               true,
 		}
-		if err = mud.Validate(options); err != nil {
+		if err = mud.ΛValidate(options); err != nil {
 			println(fmt.Sprintf("Error validating MUD: %v", err))
 			return
 		}

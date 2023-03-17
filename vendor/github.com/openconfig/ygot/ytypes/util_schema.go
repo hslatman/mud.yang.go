@@ -36,11 +36,11 @@ func validateLengthSchema(schema *yang.Entry) error {
 		// This is a limited check. It's assumed that a full check is
 		// done in the goyang parser.
 		minLen, maxLen := r.Min, r.Max
-		if minLen.Kind != yang.MinNumber && minLen.Kind != yang.Positive {
-			return fmt.Errorf("length Min must be Positive or MinNumber: %v for schema %s", minLen, schema.Name)
+		if minLen.Negative {
+			return fmt.Errorf("length Min must be positive: %v for schema %s", minLen, schema.Name)
 		}
-		if maxLen.Kind != yang.MaxNumber && maxLen.Kind != yang.Positive {
-			return fmt.Errorf("length Max must be Positive or MaxNumber: %v for schema %s", minLen, schema.Name)
+		if maxLen.Negative {
+			return fmt.Errorf("length Max must be positive: %v for schema %s", minLen, schema.Name)
 		}
 		if maxLen.Less(minLen) {
 			return fmt.Errorf("schema has bad length min[%v] > max[%v] for schema %s", minLen, maxLen, schema.Name)
@@ -142,9 +142,13 @@ func pathTagFromField(f reflect.StructField) (string, error) {
 
 // directDescendantSchema returns the direct descendant schema for the struct
 // field f. Paths are embedded in the "path" struct tag and can be either simple:
-//   e.g. "path:a"
+//
+//	e.g. "path:a"
+//
 // or composite e.g.
-//   e.g. "path:config/a|a"
+//
+//	e.g. "path:config/a|a"
+//
 // Function checks for presence of first schema without '/' and returns it.
 func directDescendantSchema(f reflect.StructField) (string, error) {
 	pathAnnotation, err := pathTagFromField(f)
@@ -283,9 +287,11 @@ func checkDataTreeAgainstPaths(jsonTree map[string]interface{}, dataPaths [][]st
 
 // schemaToStructFieldName returns the string name of the field, which must be
 // contained in parent (a struct ptr), given the schema for the field.
+// If preferShadowPath=true, then the shadow-path tag is examined first for the
+// matching field.
 // It returns empty string and nil error if the field does not exist in the
 // parent struct.
-func schemaToStructFieldName(schema *yang.Entry, parent interface{}) (string, *yang.Entry, error) {
+func schemaToStructFieldName(schema *yang.Entry, parent interface{}, preferShadowPath bool) (string, *yang.Entry, error) {
 
 	v := reflect.ValueOf(parent)
 	if util.IsNilOrInvalidValue(v) {
@@ -305,7 +311,11 @@ func schemaToStructFieldName(schema *yang.Entry, parent interface{}) (string, *y
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 		fieldName := f.Name
-		p, err := util.RelativeSchemaPath(f)
+		relativeSchemaPathFn := util.RelativeSchemaPath
+		if preferShadowPath {
+			relativeSchemaPathFn = util.RelativeSchemaPathPreferShadow
+		}
+		p, err := relativeSchemaPathFn(f)
 		if err != nil {
 			return "", nil, err
 		}
