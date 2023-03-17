@@ -7,6 +7,7 @@ import (
 
 	"github.com/openconfig/goyang/pkg/yang"
 	"github.com/openconfig/ygot/genutil"
+	"github.com/openconfig/ygot/gogen"
 	"github.com/openconfig/ygot/ygen"
 	"github.com/spf13/cobra"
 )
@@ -37,7 +38,7 @@ var generateCmd = &cobra.Command{
 
 		generateRename := false
 		addAnnotations := false
-		annotationPrefix := ygen.DefaultAnnotationPrefix
+		annotationPrefix := gogen.DefaultAnnotationPrefix
 		generateGetters := false
 		generateDelete := false
 		generateAppend := false
@@ -50,24 +51,26 @@ var generateCmd = &cobra.Command{
 
 		compressBehaviour, _ := genutil.TranslateToCompressBehaviour(compressPaths, excludeState, preferOperationalState)
 
-		cg := ygen.NewYANGCodeGenerator(&ygen.GeneratorConfig{
-			Caller: "github.com/hslatman/mud.yang.go",
-			ParseOptions: ygen.ParseOpts{
-				ExcludeModules:        modsExcluded,
-				SkipEnumDeduplication: skipEnumDedup,
-				YANGParseOptions: yang.Options{
-					IgnoreSubmoduleCircularDependencies: ignoreCircDeps,
+		cg := gogen.New(
+			"github.com/hslatman/mud.yang.go",
+			ygen.IROptions{
+				ParseOptions: ygen.ParseOpts{
+					ExcludeModules: modsExcluded,
+					YANGParseOptions: yang.Options{
+						IgnoreSubmoduleCircularDependencies: ignoreCircDeps,
+					},
+				},
+				TransformationOptions: ygen.TransformationOpts{
+					SkipEnumDeduplication: skipEnumDedup,
+					CompressBehaviour:     compressBehaviour,
+					GenerateFakeRoot:      generateFakeRoot,
+					FakeRootName:          fakeRootName,
+					ShortenEnumLeafNames:  shortenEnumLeafNames,
 				},
 			},
-			TransformationOptions: ygen.TransformationOpts{
-				CompressBehaviour:    compressBehaviour,
-				GenerateFakeRoot:     generateFakeRoot,
-				FakeRootName:         fakeRootName,
-				ShortenEnumLeafNames: shortenEnumLeafNames,
-			},
-			PackageName:        packageName,
-			GenerateJSONSchema: generateSchema,
-			GoOptions: ygen.GoOpts{
+			gogen.GoOpts{
+				PackageName:          packageName,
+				GenerateJSONSchema:   generateSchema,
 				YgotImportPath:       ygotImportPath,
 				YtypesImportPath:     ytypesImportPath,
 				GoyangImportPath:     goyangImportPath,
@@ -79,8 +82,7 @@ var generateCmd = &cobra.Command{
 				GenerateAppendMethod: generateAppend,
 				GenerateLeafGetters:  generateLeafGetters,
 				IncludeModelData:     includeModelData,
-			},
-		})
+			})
 
 		includePaths := []string{
 			"yang/", // TODO: this on its own does not seem to work
@@ -97,7 +99,7 @@ var generateCmd = &cobra.Command{
 			"yang/ietf-mud@2019-01-28.yang",
 		}
 
-		generatedGoCode, errs := cg.GenerateGoCode(generateModules, includePaths)
+		generatedGoCode, errs := cg.Generate(generateModules, includePaths)
 		if errs != nil {
 			fmt.Println(errs)
 			return
@@ -122,7 +124,7 @@ var generateCmd = &cobra.Command{
 // writeGoCodeSingleFile takes a ygen.GeneratedGoCode struct and writes the Go code
 // snippets contained within it to the io.Writer, w, provided as an argument.
 // The output includes a package header which is generated.
-func writeGoCodeSingleFile(w io.Writer, goCode *ygen.GeneratedGoCode) error {
+func writeGoCodeSingleFile(w io.Writer, goCode *gogen.GeneratedCode) error {
 	// Write the package header to the supplier writer.
 	fmt.Fprint(w, goCode.CommonHeader)
 	fmt.Fprint(w, goCode.OneOffHeader)
