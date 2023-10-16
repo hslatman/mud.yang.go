@@ -5,6 +5,8 @@ module ietf-mud-tls {
 
   import ietf-mud {
     prefix ietf-mud;
+    reference
+      "RFC 8520: Manufacturer Usage Description Specification";
   }
 
   organization
@@ -14,7 +16,7 @@ module ietf-mud-tls {
      WG List: opsawg@ietf.org
 
      Author: Konda, Tirumaleswar Reddy
-             TirumaleswarReddy_Konda@McAfee.com
+             kondtir@gmail.com
 
     ";
    description
@@ -26,7 +28,7 @@ module ietf-mud-tls {
 
      Redistribution and use in source and binary forms, with or
      without modification, is permitted pursuant to, and subject
-     to the license terms contained in, the Simplified BSD License
+     to the license terms contained in, the Revised BSD License
      set forth in Section 4.c of the IETF Trust's Legal Provisions
      Relating to IETF Documents
      (http://trustee.ietf.org/license-info).
@@ -34,7 +36,7 @@ module ietf-mud-tls {
      This version of this YANG module is part of RFC XXXX; see
      the RFC itself for full legal notices.";
 
-   revision 2020-10-19 {
+   revision 2022-10-10 {
      description
        "Initial revision.";
        reference
@@ -49,6 +51,7 @@ module ietf-mud-tls {
         is supported by a device.";
      leaf is-tls-dtls-profile-supported {
        type boolean;
+       default false;
          description
            "This value will equal 'true' if a device supports
             (D)TLS profile.";
