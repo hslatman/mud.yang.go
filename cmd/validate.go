@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/hslatman/mud.yang.go/pkg/mudyang"
 	"github.com/openconfig/ygot/ytypes"
@@ -14,20 +14,17 @@ var validateCmd = &cobra.Command{
 	Short: "Validates a MUD file",
 	Long:  `Validates a MUD file`,
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-
+	RunE: func(cmd *cobra.Command, args []string) error {
 		fileToRead := args[0]
 
-		json, err := ioutil.ReadFile(fileToRead)
+		json, err := os.ReadFile(fileToRead)
 		if err != nil {
-			println(fmt.Sprintf("File could not be read: %v", err))
-			return
+			return fmt.Errorf("failed to read file: %w", err)
 		}
 
 		mud := &mudyang.Mudfile{}
 		if err := mudyang.Unmarshal([]byte(json), mud); err != nil {
-			println(fmt.Sprintf("Can't unmarshal JSON: %v", err))
-			return
+			return fmt.Errorf("failed to unmarshal JSON: %w", err)
 		}
 
 		options := &ytypes.LeafrefOptions{
@@ -35,10 +32,11 @@ var validateCmd = &cobra.Command{
 			Log:               true,
 		}
 		if err = mud.ΛValidate(options); err != nil {
-			println(fmt.Sprintf("Error validating MUD: %v", err))
-			return
+			return fmt.Errorf("MUD validation failed: %w", err)
 		}
 
 		println("MUD file is valid")
+
+		return nil
 	},
 }

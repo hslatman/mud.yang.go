@@ -22,7 +22,7 @@ var generateCmd = &cobra.Command{
 	Use:   "generate",
 	Short: "Generates new mudyang model(s)",
 	Long:  `Generates a new mudyang implementation using the MUD and dependent YANG specifications`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 
 		// SOURCE: https://github.com/openconfig/ygot/blob/master/generator/generator.go#L298
 		// No changes to the implementation has been made, apart from how the arguments
@@ -121,8 +121,7 @@ var generateCmd = &cobra.Command{
 
 		generatedGoCode, errs := cg.Generate(generateModules, includePaths)
 		if errs != nil {
-			fmt.Println(errs)
-			return
+			return errs
 		}
 
 		var outfh *os.File
@@ -133,7 +132,7 @@ var generateCmd = &cobra.Command{
 		outfh = genutil.OpenFile(ocStructsOutputFile)
 		defer genutil.SyncFile(outfh)
 
-		writeGoCodeSingleFile(outfh, generatedGoCode)
+		return writeGoCodeSingleFile(outfh, generatedGoCode)
 	},
 }
 
