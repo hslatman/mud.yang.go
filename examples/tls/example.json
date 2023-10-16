@@ -1,0 +1,83 @@
+{
+  "ietf-mud:mud": {
+    "mud-version": 1,
+    "mud-url": "https://example.com/IoTDevice",
+    "last-update": "2019-18-06T03:56:40.105+10:00",
+    "cache-validity": 100,
+    "extensions": [
+      "ietf-mud-tls"
+    ],
+    "ietf-mud-tls:is-tls-dtls-profile-supported": true,
+    "is-supported": true,
+    "systeminfo": "IoT device name",
+    "from-device-policy": {
+      "access-lists": {
+        "access-list": [
+          {
+            "name": "mud-7500-profile"
+          }
+        ]
+      }
+    }
+  },
+  "ietf-access-control-list:acls": {
+    "acl": [
+      {
+        "name": "mud-7500-profile",
+        "type": "ipv6-acl-type",
+        "aces": {
+          "ace": [
+            {
+              "name": "cl0-frdev",
+              "matches": {
+                "ipv6": {
+                  "protocol": 6
+                },
+                "tcp": {
+                  "ietf-mud:direction-initiated": "from-device",
+                  "destination-port": {
+                    "operator": "eq",
+                    "port": 443
+                  }
+                },
+                "ietf-acl-tls:client-profiles": {
+                  "tls-dtls-profile": [
+                    {
+                      "name": "profile1",
+                      "supported-tls-version": [
+                        "tls13"
+                      ],
+                      "cipher-suite": [
+                        {
+                          "cipher": 19,
+                          "hash": 1
+                        },
+                        {
+                          "cipher": 19,
+                          "hash": 2
+                        }
+                      ],
+                      "extension-type": [
+                        10,
+                        11,
+                        13,
+                        16,
+                        24
+                      ],
+                      "supported-group": [
+                        29
+                      ]
+                    }
+                  ]
+                }
+              },
+              "actions": {
+                "forwarding": "accept"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
