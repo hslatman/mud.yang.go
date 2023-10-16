@@ -115,8 +115,7 @@ var generateCmd = &cobra.Command{
 			"yang/ietf-crypto-types@2021-09-14.yang",     // NOTE: sourced from https://yangcatalog.org/YANG-modules/
 			"yang/ietf-mud-transparency@2021-10-22.yang", // NOTE: currently sourced from https://github.com/elear/mud-sbom/commit/e8a1280a15f742c333f6222068df69c99f328de2
 			"yang/ietf-ol@2021-05-21.yang",               // NOTE: sourced from https://yangcatalog.org/YANG-modules/
-			//"yang/iana-opsawg-mud-tls-profile@2019-06-12-edited.yang", // NOTE: sourced from https://raw.githubusercontent.com/YangModels/yang/3af23949e11a2acd2f36df1dc0afca73ffe118ac/experimental/ietf-extracted-YANG-modules/iana-opsawg-mud-tls-profile@2019-06-12.yang
-			"yang/ietf-mud-tls@2022-10-10.yang", // NOTE: sourced from https://yangcatalog.org/YANG-modules/ietf-mud-tls%402022-10-10.yang
+			"yang/ietf-mud-tls@2022-10-10.yang",          // NOTE: sourced from https://yangcatalog.org/YANG-modules/ietf-mud-tls%402022-10-10.yang
 			"yang/ietf-mud@2019-01-28.yang",
 		}
 
