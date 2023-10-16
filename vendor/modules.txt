@@ -25,33 +25,39 @@ github.com/inconshreveable/mousetrap
 ## explicit; go 1.11
 github.com/kylelemons/godebug/diff
 github.com/kylelemons/godebug/pretty
-# github.com/openconfig/gnmi v0.9.1
+# github.com/openconfig/gnmi v0.10.0
 ## explicit; go 1.18
 github.com/openconfig/gnmi/ctree
 github.com/openconfig/gnmi/errlist
 github.com/openconfig/gnmi/proto/gnmi
 github.com/openconfig/gnmi/proto/gnmi_ext
 github.com/openconfig/gnmi/value
-# github.com/openconfig/goyang v1.2.0
+# github.com/openconfig/goyang v1.4.1
 ## explicit; go 1.14
 github.com/openconfig/goyang/pkg/indent
 github.com/openconfig/goyang/pkg/yang
-# github.com/openconfig/ygot v0.26.1
-## explicit; go 1.14
+# github.com/openconfig/ygot v0.29.12
+## explicit; go 1.18
 github.com/openconfig/ygot/genutil
 github.com/openconfig/ygot/gogen
 github.com/openconfig/ygot/internal/igenutil
+github.com/openconfig/ygot/internal/yreflect
 github.com/openconfig/ygot/util
+github.com/openconfig/ygot/yangschema
 github.com/openconfig/ygot/ygen
 github.com/openconfig/ygot/ygot
 github.com/openconfig/ygot/ytypes
-# github.com/spf13/cobra v1.6.1
+# github.com/spf13/cobra v1.7.0
 ## explicit; go 1.15
 github.com/spf13/cobra
 # github.com/spf13/pflag v1.0.5
 ## explicit; go 1.12
 github.com/spf13/pflag
-# golang.org/x/net v0.8.0
+# golang.org/x/exp v0.0.0-20231006140011-7918f672742d
+## explicit; go 1.20
+golang.org/x/exp/constraints
+golang.org/x/exp/slices
+# golang.org/x/net v0.17.0
 ## explicit; go 1.17
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
@@ -59,19 +65,19 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/sys v0.6.0
+# golang.org/x/sys v0.13.0
 ## explicit; go 1.17
 golang.org/x/sys/unix
-# golang.org/x/text v0.8.0
+# golang.org/x/text v0.13.0
 ## explicit; go 1.17
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# google.golang.org/genproto v0.0.0-20230306155012-7f2fa6fef1f4
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20230525234030-28d5490b6b19
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.53.0
+# google.golang.org/grpc v1.58.0-dev
 ## explicit; go 1.17
 google.golang.org/grpc
 google.golang.org/grpc/attributes
@@ -121,7 +127,7 @@ google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
-# google.golang.org/protobuf v1.30.0
+# google.golang.org/protobuf v1.31.0
 ## explicit; go 1.11
 google.golang.org/protobuf/encoding/protojson
 google.golang.org/protobuf/encoding/prototext

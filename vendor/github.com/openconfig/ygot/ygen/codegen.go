@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/goyang/pkg/yang"
 	"github.com/openconfig/ygot/genutil"
 	"github.com/openconfig/ygot/util"
+	"github.com/openconfig/ygot/yangschema"
 
 	"github.com/openconfig/ygot/internal/igenutil"
 
@@ -172,7 +173,11 @@ func processModules(yangFiles, includePaths []string, options yang.Options) ([]*
 	// routines.
 	entries := []*yang.Entry{}
 	for _, modName := range modNames {
-		entries = append(entries, yang.ToEntry(mods[modName]))
+		entry := yang.ToEntry(mods[modName])
+		if errs := entry.GetErrors(); len(errs) > 0 {
+			return nil, util.Errors(errs)
+		}
+		entries = append(entries, entry)
 	}
 	return entries, nil
 }
@@ -191,7 +196,7 @@ type mappedYANGDefinitions struct {
 	enumEntries map[string]*yang.Entry
 	// schematree is a copy of the YANG schema tree, containing only leaf
 	// entries, such that schema paths can be referenced.
-	schematree *schemaTree
+	schematree *yangschema.Tree
 	// modules is the set of parsed YANG modules that are being processed as part of the
 	// code generatio, expressed as a slice of yang.Entry pointers.
 	modules []*yang.Entry
@@ -251,7 +256,7 @@ func mappedDefinitions(yangFiles, includePaths []string, opts IROptions) (*mappe
 	// Build the schematree for the modules provided - we build for all of the
 	// root elements, since we might need to reference a part of the schema that
 	// we are not outputting for leafref lookups.
-	st, err := buildSchemaTree(treeElems)
+	st, err := yangschema.BuildTree(treeElems)
 	if err != nil {
 		return nil, []error{err}
 	}

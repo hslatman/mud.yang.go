@@ -26,6 +26,7 @@ import (
 	"github.com/openconfig/goyang/pkg/yang"
 	"github.com/openconfig/ygot/genutil"
 	"github.com/openconfig/ygot/util"
+	"github.com/openconfig/ygot/yangschema"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -142,10 +143,10 @@ func GetOrderedPathDirectories(directory map[string]*Directory) []string {
 }
 
 // getOrderedDirDetails takes in a language-specific LangMapper, a map of
-// Directory objects containing the raw AST information, a schemaTree, and IR
+// Directory objects containing the raw AST information, a SchemaTree, and IR
 // generation options, and returns a map of ParsedDirectory objects that form
 // the primary component of ygen's IR output.
-func getOrderedDirDetails(langMapper LangMapper, directory map[string]*Directory, schematree *schemaTree, opts IROptions) (map[string]*ParsedDirectory, error) {
+func getOrderedDirDetails(langMapper LangMapper, directory map[string]*Directory, schematree *yangschema.Tree, opts IROptions) (map[string]*ParsedDirectory, error) {
 	dirDets := map[string]*ParsedDirectory{}
 	for _, dirPath := range GetOrderedPathDirectories(directory) {
 		dir := directory[dirPath]
@@ -167,9 +168,11 @@ func getOrderedDirDetails(langMapper LangMapper, directory map[string]*Directory
 		if definingModule := yang.RootNode(dir.Entry.Node); definingModule != nil {
 			definingModuleName = definingModule.Name
 		}
+
 		pd := &ParsedDirectory{
 			Name:              dir.Name,
 			Path:              util.SlicePathToString(dir.Path),
+			SchemaPath:        util.SchemaTreePathNoModule(dir.Entry),
 			PackageName:       packageName,
 			IsFakeRoot:        dir.IsFakeRoot,
 			BelongingModule:   belongingModule,
@@ -180,12 +183,38 @@ func getOrderedDirDetails(langMapper LangMapper, directory map[string]*Directory
 		switch {
 		case dir.Entry.IsList():
 			pd.Type = List
+			if dir.Entry.ListAttr.OrderedByUser {
+				pd.Type = OrderedList
+			}
 			if !util.IsUnkeyedList(dir.Entry) {
 				pd.ListKeys = dir.ListAttr.Keys
 				pd.ListKeyYANGNames = dir.ListAttr.ListKeyYANGNames
 			}
 		default:
 			pd.Type = Container
+		}
+
+		for i, entry := 0, dir.Entry; ; i++ {
+			exts, err := yang.MatchingEntryExtensions(entry, "openconfig-extensions", "telemetry-atomic")
+			if err != nil {
+				return nil, fmt.Errorf("cannot retrieve OpenConfig extensions: %v", err)
+			}
+			if len(exts) > 0 {
+				if i == 0 {
+					pd.TelemetryAtomic = true
+				} else {
+					pd.CompressedTelemetryAtomic = true
+				}
+			}
+
+			if entry.Parent == nil {
+				// The very first element is the module -- skip it.
+				break
+			}
+			entry = entry.Parent
+			if _, ok := directory[entry.Path()]; ok {
+				break
+			}
 		}
 
 		pd.Fields = make(map[string]*NodeDetails, len(dir.Fields))
@@ -210,7 +239,7 @@ func getOrderedDirDetails(langMapper LangMapper, directory map[string]*Directory
 
 			var target *yang.Entry
 			if field.Type != nil && field.Type.Kind == yang.Yleafref {
-				if target, err = schematree.resolveLeafrefTarget(field.Type.Path, field); err != nil {
+				if target, err = schematree.ResolveLeafrefTarget(field.Type.Path, field); err != nil {
 					return nil, fmt.Errorf("unable to resolve leafref field: %v", err)
 				}
 			}
@@ -236,6 +265,7 @@ func getOrderedDirDetails(langMapper LangMapper, directory map[string]*Directory
 					SchemaPath:        util.SchemaTreePathNoModule(field),
 					LeafrefTargetPath: target.Path(),
 					Description:       field.Description,
+					ConfigFalse:       !util.IsConfig(field),
 				},
 				MappedPaths:             mp,
 				MappedPathModules:       mm,
@@ -255,12 +285,14 @@ func getOrderedDirDetails(langMapper LangMapper, directory map[string]*Directory
 				t := LeafNode
 				if field.IsLeafList() {
 					t = LeafListNode
+					nd.YANGDetails.OrderedByUser = field.ListAttr.OrderedByUser
 				}
 
 				nd.Type = t
 				nd.LangType = mtype
 			case field.IsList():
 				nd.Type = ListNode
+				nd.YANGDetails.OrderedByUser = field.ListAttr.OrderedByUser
 			case util.IsAnydata(field):
 				nd.Type = AnyDataNode
 			default:

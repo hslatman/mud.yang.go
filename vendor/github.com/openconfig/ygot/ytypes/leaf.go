@@ -23,6 +23,7 @@ import (
 
 	log "github.com/golang/glog"
 	"github.com/openconfig/goyang/pkg/yang"
+	"github.com/openconfig/ygot/internal/yreflect"
 	"github.com/openconfig/ygot/util"
 	"github.com/openconfig/ygot/ygot"
 
@@ -381,7 +382,11 @@ func unmarshalLeaf(inSchema *yang.Entry, parent interface{}, value interface{}, 
 	if err != nil {
 		return err
 	}
-	if ykind == yang.Ybinary {
+	fieldIsSliceofSlice, err := isFieldSliceofSlice(parent, fieldName)
+	if err != nil {
+		return err
+	}
+	if ykind == yang.Ybinary && !fieldIsSliceofSlice {
 		// Binary is a slice field which is treated as a scalar.
 		return util.InsertIntoStruct(parent, fieldName, v)
 	}
@@ -394,6 +399,24 @@ func unmarshalLeaf(inSchema *yang.Entry, parent interface{}, value interface{}, 
 	}
 
 	return util.UpdateField(parent, fieldName, v)
+}
+
+func isFieldSliceofSlice(parentStruct interface{}, fieldName string) (bool, error) {
+	if util.IsValueNil(parentStruct) {
+		return false, fmt.Errorf("parent is nil in UpdateField for field %s", fieldName)
+	}
+
+	pt := reflect.TypeOf(parentStruct)
+
+	if !util.IsTypeStructPtr(pt) {
+		return false, fmt.Errorf("parent type %T must be a struct ptr", parentStruct)
+	}
+	ft, ok := pt.Elem().FieldByName(fieldName)
+	if !ok {
+		return false, fmt.Errorf("parent type %T does not have a field name %s", parentStruct, fieldName)
+	}
+
+	return ft.Type.Kind() == reflect.Slice && ft.Type.Elem().Kind() == reflect.Slice, nil
 }
 
 // unmarshalUnion unmarshals a union schema type with the given value into
@@ -620,9 +643,9 @@ func getUnionTypesNotEnums(schema *yang.Entry, yt *yang.YangType) ([]*yang.YangT
 // type) for a given schema, which must be for an enum type. t is the type of
 // the containing parent struct.
 func schemaToEnumTypes(schema *yang.Entry, t reflect.Type) ([]reflect.Type, error) {
-	enumTypesMethod := reflect.New(t).Elem().MethodByName("ΛEnumTypeMap")
-	if !enumTypesMethod.IsValid() {
-		return nil, fmt.Errorf("type %s does not have a ΛEnumTypesMap function", t)
+	enumTypesMethod, err := yreflect.MethodByName(reflect.New(t).Elem(), "ΛEnumTypeMap")
+	if err != nil {
+		return nil, err
 	}
 
 	ec := enumTypesMethod.Call(nil)

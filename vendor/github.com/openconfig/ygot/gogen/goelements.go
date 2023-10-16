@@ -642,8 +642,32 @@ func (s *GoLangMapper) yangDefaultValueToGo(value string, args resolveTypeArgs, 
 		if err != nil {
 			return "", yang.Ynone, err
 		}
+
+		// Check if the value is an empty string.
+		signStripedValue := strings.TrimLeft(strings.TrimLeft(value, "-"), "+")
+		if len(signStripedValue) == 0 {
+			return "", yang.Ynone, fmt.Errorf("default value conversion: empty value")
+		}
+
+		// When the default value of int/uint is not base-10, check if the base should be supported according to
+		// https://datatracker.ietf.org/doc/html/rfc7950#section-9.2.1
+		//
+		// When the first character in the value is `0`, the value could be hexadecimal, octal or binary. While hexadecimal
+		// and octal values are supported (with an optional sign prefix), binary is not allowed by the RFC. The format support
+		// of `strconv.ParseInt/ParseUint` functions should be further constrained.
+		if signStripedValue[0] == '0' {
+			if len(signStripedValue) > 1 && (signStripedValue[1] == 'b' || signStripedValue[1] == 'B') {
+				return "", yang.Ynone, fmt.Errorf("default value conversion: base 2 value `%s` is not allowed", value)
+			}
+		}
+
+		// Underscores are not allowed in the value, although `strconv` allows them in certain formats.
+		if strings.Contains(value, "_") {
+			return "", yang.Ynone, fmt.Errorf("default value conversion: `_` is not allowed in the value %s", value)
+		}
+
 		if signed {
-			val, err := strconv.ParseInt(value, 10, bits)
+			val, err := strconv.ParseInt(value, 0, bits)
 			if err != nil {
 				return "", yang.Ynone, fmt.Errorf("default value conversion: unable to convert default value %q to %v: %v", value, ykind, err)
 			}
@@ -651,7 +675,7 @@ func (s *GoLangMapper) yangDefaultValueToGo(value string, args resolveTypeArgs, 
 				return "", yang.Ynone, fmt.Errorf("default value conversion: %q doesn't match int restrictions: %v", value, err)
 			}
 		} else {
-			val, err := strconv.ParseUint(value, 10, bits)
+			val, err := strconv.ParseUint(value, 0, bits)
 			if err != nil {
 				return "", yang.Ynone, fmt.Errorf("default value conversion: unable to convert default value %q to %v: %v", value, ykind, err)
 			}
@@ -757,4 +781,35 @@ func (s *GoLangMapper) yangDefaultValueToGo(value string, args resolveTypeArgs, 
 		// TODO(wenbli): support bit type.
 		return "", yang.Ynone, fmt.Errorf("default value conversion: cannot create default value for unsupported type %v, type name: %q", ykind, args.yangType.Name)
 	}
+}
+
+// goLeafDefaults returns the default value(s) of the leaf e if specified. If it
+// is unspecified, the value specified by the type is returned if it is not nil,
+// otherwise nil is returned to indicate no default was specified.
+// TODO(wenbli): This doesn't handle unions. Deprecate this for v1 release.
+func goLeafDefaults(e *yang.Entry, t *ygen.MappedType) []string {
+	defaultValues := e.DefaultValues()
+	if len(defaultValues) == 0 && t.DefaultValue != nil {
+		defaultValues = []string{*t.DefaultValue}
+	}
+
+	for i, defVal := range defaultValues {
+		if t.IsEnumeratedValue {
+			defaultValues[i] = enumDefaultValue(t.NativeType, defVal, goEnumPrefix)
+		} else {
+			defaultValues[i] = quoteDefault(defVal, t.NativeType)
+		}
+	}
+
+	return defaultValues
+}
+
+// quoteDefault adds quotation marks to the value string if the goType specified
+// is a string, and hence requires quoting.
+func quoteDefault(value string, goType string) string {
+	if goType == "string" {
+		return fmt.Sprintf("%q", value)
+	}
+
+	return value
 }

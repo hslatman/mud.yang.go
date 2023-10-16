@@ -86,6 +86,20 @@ type ValidationOption interface {
 	IsValidationOption()
 }
 
+// GoOrderedMap is an interface which can be implemented by Go structs that are
+// generated to represent a YANG "ordered-by user" list. It simply allows
+// handling code to ensure that it is interacting with a struct that will meet
+// the expectations of the interface - such as the existence of a Values()
+// method that allows the retrieval of the list elements within the ordered
+// list.
+type GoOrderedMap interface {
+	// IsYANGOrderedList is a marker method that indicates that the struct
+	// implements the GoOrderedMap interface.
+	IsYANGOrderedList()
+	// Len returns the size of the ordered list.
+	Len() int
+}
+
 // KeyHelperGoStruct is an interface which can be implemented by Go structs
 // that are generated to represent a YANG container or list member that has
 // the corresponding function to retrieve the list keys as a map.
@@ -141,7 +155,17 @@ type EnumDefinition struct {
 	// DefiningModule specifies the module within which the enumeration was
 	// defined. Only populated for identity values.
 	DefiningModule string
-	// Value specifies the value of an "enumeration" type.
+	// Value is an optionally-populated field that specifies the value of
+	// an enumerated type.
+	//
+	// TODO: Consider removing this field and using a custom type in the
+	// ygen package since only the IR generation populates this field.
+	//
+	// When populated, the following values are recommended:
+	// For enumerations, this value is determined by goyang.
+	// For identityrefs, this value is determined by the lexicographical
+	// ordering of the identityref name, starting with 0 to be consistent
+	// with goyang's enumeration numbering.
 	Value int
 }
 

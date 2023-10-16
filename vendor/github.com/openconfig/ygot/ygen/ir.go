@@ -21,6 +21,7 @@ import (
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/goyang/pkg/yang"
 	"github.com/openconfig/ygot/genutil"
+	"github.com/openconfig/ygot/yangschema"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -103,7 +104,7 @@ type LangMapperBaseSetup interface {
 	// setSchemaTree is used to supply a copy of the YANG schema tree to
 	// the mapped such that leaves of type leafref can be resolved to
 	// their target leaves.
-	setSchemaTree(*schemaTree)
+	setSchemaTree(*yangschema.Tree)
 
 	// InjectEnumSet is intended to be called by unit tests in order to set up the
 	// LangMapperBase such that generated enumeration/identity names can be looked
@@ -128,7 +129,7 @@ type LangMapperBase struct {
 
 	// schematree is a copy of the YANG schema tree, containing only leaf
 	// entries, such that schema paths can be referenced.
-	schematree *schemaTree
+	schematree *yangschema.Tree
 }
 
 // setEnumSet is used to supply a set of enumerated values to the
@@ -150,7 +151,7 @@ func (s *LangMapperBase) setEnumSet(e *enumSet) {
 // In testing contexts outside of GenerateIR, however, the corresponding
 // exported Inject method needs to be called in order for certain built-in
 // methods of LangMapperBase to be available for use.
-func (s *LangMapperBase) setSchemaTree(st *schemaTree) {
+func (s *LangMapperBase) setSchemaTree(st *yangschema.Tree) {
 	s.schematree = st
 }
 
@@ -175,7 +176,7 @@ func (s *LangMapperBase) InjectEnumSet(entries map[string]*yang.Entry, compressP
 // set of yang.Entry pointers into a ctree structure.
 // It returns an error if there is duplication within the set of entries.
 func (s *LangMapperBase) InjectSchemaTree(entries []*yang.Entry) error {
-	schematree, err := buildSchemaTree(entries)
+	schematree, err := yangschema.BuildTree(entries)
 	if err != nil {
 		return err
 	}
@@ -192,7 +193,7 @@ func (s *LangMapperBase) InjectSchemaTree(entries []*yang.Entry) error {
 // In testing contexts, this function requires InjectSchemaTree to be called
 // prior to being usable.
 func (b *LangMapperBase) ResolveLeafrefTarget(path string, contextEntry *yang.Entry) (*yang.Entry, error) {
-	return b.schematree.resolveLeafrefTarget(path, contextEntry)
+	return b.schematree.ResolveLeafrefTarget(path, contextEntry)
 }
 
 // EnumeratedTypedefTypeName retrieves the name of an enumerated typedef (i.e.,
@@ -383,6 +384,9 @@ type ParsedDirectory struct {
 	Type DirType
 	// Path specifies the absolute YANG schema path of the node.
 	Path string
+	// SchemaPath specifies the absolute YANG schema node path. It does not
+	// include the module name nor choice/case elements in the YANG file.
+	SchemaPath string
 	// Fields is the set of direct children of the node that are to be
 	// output. It is keyed by the YANG node identifier of the child field
 	// since there could be name conflicts at this processing stage.
@@ -443,6 +447,27 @@ type ParsedDirectory struct {
 	// statement in YANG:
 	// https://datatracker.ietf.org/doc/html/rfc7950#section-7.21.1
 	ConfigFalse bool
+	// TelemetryAtomic indicates that the node has been modified with the
+	// OpenConfig extension "telemetry-atomic".
+	// https://github.com/openconfig/public/blob/master/release/models/openconfig-extensions.yang#L154
+	//
+	// For example in the relative path /subinterfaces/subinterface, this
+	// field be true if and only if the second element, /interface, is
+	// marked "telemetry-atomic" in the YANG schema.
+	TelemetryAtomic bool
+	// CompressedTelemetryAtomic indicates that a parent of the node which
+	// has been compressed out has been modified with the OpenConfig
+	// extension "telemetry-atomic".
+	//
+	// For example, /interfaces/interface/subinterfaces/subinterface may be
+	// a path where the /subinterfaces element within the relative path
+	// /subinterfaces/subinterface is marked "telemetry-atomic". In this
+	// case, this field will be marked true since the relative path from
+	// the parent ParsedDirectory contains a compressed-out element that's
+	// marked "telemetry-atomic".
+	//
+	// https://github.com/openconfig/public/blob/master/release/models/openconfig-extensions.yang#L154
+	CompressedTelemetryAtomic bool
 }
 
 // OrderedFieldNames returns the YANG name of all fields belonging to the
@@ -506,8 +531,10 @@ const (
 	_ DirType = iota
 	// Container represents a YANG 'container'.
 	Container
-	// List represents a YANG 'list'.
+	// List represents a YANG 'list' that is 'ordered-by system'.
 	List
+	// OrderedList represents a YANG 'list' that is 'ordered-by user'.
+	OrderedList
 )
 
 // NodeDetails describes an individual field of the generated
@@ -673,6 +700,15 @@ type YANGNodeDetails struct {
 	PresenceStatement *string
 	// Description contains the description of the node.
 	Description string
+	// OrderedByUser indicates whether the node has the modifier
+	// "ordered-by user".
+	OrderedByUser bool
+	// ConfigFalse represents whether the node is state data as opposed to
+	// configuration data.
+	// The meaning of "config" is exactly the same as the "config"
+	// statement in YANG:
+	// https://datatracker.ietf.org/doc/html/rfc7950#section-7.21.1
+	ConfigFalse bool
 }
 
 // EnumeratedValueType is used to indicate the source YANG type
