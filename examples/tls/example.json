@@ -2,7 +2,7 @@
   "ietf-mud:mud": {
     "mud-version": 1,
     "mud-url": "https://example.com/IoTDevice",
-    "last-update": "2019-18-06T03:56:40.105+10:00",
+    "last-update": "2024-08-05T03:56:40.105+10:00",
     "cache-validity": 100,
     "extensions": [
       "ietf-mud-tls"
@@ -48,14 +48,8 @@
                         "tls13"
                       ],
                       "cipher-suite": [
-                        {
-                          "cipher": 19,
-                          "hash": 1
-                        },
-                        {
-                          "cipher": 19,
-                          "hash": 2
-                        }
+                        4865, 
+                        4866
                       ],
                       "extension-type": [
                         10,
