@@ -23,7 +23,7 @@
       }
     }
   },
-  "ietf-access-control-list:acls" : {
+  "ietf-access-control-list:acls": {
     "acl" : [ {
       "name" : "from-ipv4-amazonecho",
       "type" : "ipv4-acl-type",

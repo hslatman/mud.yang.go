@@ -51,15 +51,22 @@ func TestMudfile_ΛValidate(t *testing.T) {
 			},
 		},
 		{
-			name:     "ok/sbom/mixed",
-			filepath: "./../../examples/sbom/mixedExample.json",
+			name:     "ok/ol",
+			filepath: "./../../examples/ol/olExample.json",
 			args: args{
 				opts: []ygot.ValidationOption{leafRefOptions},
 			},
 		},
 		{
-			name:     "ok/sbom/complete",
-			filepath: "./../../examples/sbom/completeExample.json",
+			name:     "ok/transparency/mixed",
+			filepath: "./../../examples/transparency/mixedExample.json",
+			args: args{
+				opts: []ygot.ValidationOption{leafRefOptions},
+			},
+		},
+		{
+			name:     "ok/transparency/complete",
+			filepath: "./../../examples/transparency/completeExample.json",
 			args: args{
 				opts: []ygot.ValidationOption{leafRefOptions},
 			},
@@ -98,6 +105,8 @@ func TestMudfile_ΛValidate(t *testing.T) {
 				assert.Error(t, err)
 				return
 			}
+
+			assert.NoError(t, err)
 
 			err = mud.ΛValidate(tc.args.opts...)
 			if tc.wantValidationErr {

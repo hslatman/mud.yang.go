@@ -1,0 +1,28 @@
+{
+    "ietf-mud:mud": {
+      "mud-version": 1,
+      "extensions": [
+        "ol"
+      ],
+      "ietf-ol:ol": {
+        "license": [
+          {
+            "owner-name": "Copyright 2024 Frobinator, Inc",
+            "spdx-tags": [
+              "0BSD"
+            ]
+          }
+        ]
+      },
+      "mud-url": "https://frobs.example.com/mud/Frob.json",
+      "mud-signature": "https://frobs.example.com/mud/Frob.p7s",
+      "last-update": "2021-05-24T11:26:04+00:00",
+      "cache-validity": 48,
+      "is-supported": true,
+      "systeminfo": "This device helps produce frobs",
+      "mfg-name": "FrobMaster",
+      "documentation": "https://frobs.example.com/doc",
+      "model-name": "Frobinator"
+    }
+  }
+  

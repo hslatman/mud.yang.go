@@ -61,7 +61,10 @@ var generateCmd = &cobra.Command{
 		excludeState := false
 		preferOperationalState := false
 
-		compressBehaviour, _ := genutil.TranslateToCompressBehaviour(compressPaths, excludeState, preferOperationalState)
+		compressBehaviour, err := genutil.TranslateToCompressBehaviour(compressPaths, excludeState, preferOperationalState)
+		if err != nil {
+			return err
+		}
 
 		cg := gogen.New(
 			"github.com/hslatman/mud.yang.go",
@@ -106,17 +109,17 @@ var generateCmd = &cobra.Command{
 			"yang/ietf-packet-fields@2019-03-04.yang", // TODO: we currently provide these as modules, but I think importing should be enough?
 			"yang/ietf-ethertypes@2019-03-04.yang",
 			"yang/ietf-acldns.yang",
-			"yang/ietf-inet-types.yang",
-			"yang/ietf-access-control-list.yang",
-			"yang/iana-tls-profile@2022-10-10.yang",      // NOTE: sourced from https://yangcatalog.org/YANG-modules/iana-tls-profile%402022-10-10.yang
-			"yang/ietf-acl-tls@2022-10-10.yang",          // NOTE: sourced from https://yangcatalog.org/YANG-modules/ietf-acl-tls%402022-10-10.yang
-			"yang/iana-hash-algs.yang",                   // NOTE: sourced from https://raw.githubusercontent.com/YangModels/yang/3af23949e11a2acd2f36df1dc0afca73ffe118ac/experimental/ietf-extracted-YANG-modules/iana-hash-algs@2020-03-08.yang
-			"yang/ietf-netconf-acm.yang",                 // NOTE: sourced from https://raw.githubusercontent.com/huawei/yang/855d2d384d49fea03872e75fcea4d40619cf3528/network-router/8.20.0/atn980b/ietf-netconf-acm.yang
-			"yang/ietf-crypto-types@2021-09-14.yang",     // NOTE: sourced from https://yangcatalog.org/YANG-modules/
-			"yang/ietf-mud-transparency@2021-10-22.yang", // NOTE: currently sourced from https://github.com/elear/mud-sbom/commit/e8a1280a15f742c333f6222068df69c99f328de2
-			"yang/ietf-ol@2021-05-21.yang",               // NOTE: sourced from https://yangcatalog.org/YANG-modules/
-			"yang/ietf-mud-tls@2022-10-10.yang",          // NOTE: sourced from https://yangcatalog.org/YANG-modules/ietf-mud-tls%402022-10-10.yang
-			"yang/ietf-mud@2019-01-28.yang",
+			"yang/ietf-access-control-list@2019-03-04.yang", // NOTE sourced from https://www.yangcatalog.org/all_modules/ietf-access-control-list@2019-03-04.yang
+			"yang/ietf-inet-types@2024-10-21.yang",          // NOTE: sourced from https://www.yangcatalog.org/all_modules/ietf-inet-types@2024-10-21.yang
+			"yang/iana-tls-profile@2025-04-18.yang",         // NOTE: sourced from https://www.yangcatalog.org/all_modules/iana-tls-profile@2025-04-18.yang
+			"yang/ietf-acl-tls@2025-04-18.yang",             // NOTE: sourced from https://www.yangcatalog.org/all_modules/ietf-acl-tls@2025-04-18.yang
+			"yang/iana-hash-algs.yang",                      // NOTE: sourced from https://raw.githubusercontent.com/YangModels/yang/3af23949e11a2acd2f36df1dc0afca73ffe118ac/experimental/ietf-extracted-YANG-modules/iana-hash-algs@2020-03-08.yang
+			"yang/ietf-netconf-acm.yang",                    // NOTE: sourced from https://raw.githubusercontent.com/huawei/yang/855d2d384d49fea03872e75fcea4d40619cf3528/network-router/8.20.0/atn980b/ietf-netconf-acm.yang
+			"yang/ietf-crypto-types@2021-09-14.yang",        // NOTE: sourced from https://yangcatalog.org/YANG-modules/
+			"yang/ietf-mud-transparency@2023-10-10.yang",    // NOTE: sourced from https://www.yangcatalog.org/all_modules/ietf-mud-transparency@2023-10-10.yang
+			"yang/ietf-ol@2024-04-26.yang",                  // NOTE: sourced from https://www.yangcatalog.org/all_modules/ietf-ol@2024-04-26.yang
+			"yang/ietf-mud-tls@2025-04-18.yang",             // NOTE: sourced from https://www.yangcatalog.org/all_modules/ietf-mud-tls@2025-04-18.yang
+			"yang/ietf-mud@2019-01-28.yang",                 // NOTE: sourced from https://www.yangcatalog.org/all_modules/ietf-mud@2019-01-28.yang
 		}
 
 		generatedGoCode, errs := cg.Generate(generateModules, includePaths)
