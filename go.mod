@@ -1,8 +1,6 @@
 module github.com/hslatman/mud.yang.go
 
-go 1.23.4
-
-toolchain go1.23.5
+go 1.24
 
 require (
 	github.com/openconfig/goyang v1.6.2
@@ -29,3 +27,5 @@ require (
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+tool github.com/openconfig/ygot/generator
