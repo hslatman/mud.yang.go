@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/openconfig/ygot/ygot"
 	"github.com/spf13/cobra"
 
-	"github.com/openconfig/ygot/ygot"
-
-	"github.com/hslatman/mud.yang.go/pkg/mudyang"
+	"github.com/hslatman/go-mudyang"
 )
 
 var readCmd = &cobra.Command{

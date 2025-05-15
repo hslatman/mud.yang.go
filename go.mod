@@ -1,4 +1,4 @@
-module github.com/hslatman/mud.yang.go
+module github.com/hslatman/go-mudyang
 
 go 1.24
 
