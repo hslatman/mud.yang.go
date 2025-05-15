@@ -1,3 +1,5 @@
-run:
-  skip-dirs:
-    - pkg/mudyang # generated code
+version: "2"
+linters:
+  exclusions:
+    paths:
+      - mudyang.go # generated code

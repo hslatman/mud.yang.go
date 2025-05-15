@@ -32,7 +32,7 @@ jobs:
         if: matrix.full-tests
         run: | # TODO: use the GH action instead
           curl -sL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh |
-              sh -s -- -b $HOME/go/bin v1.64.8
+              sh -s -- -b $HOME/go/bin v2.1.6
           $HOME/go/bin/golangci-lint run --timeout=30m \
                                          --max-issues-per-linter 0 \
                                          --max-same-issues 0 \

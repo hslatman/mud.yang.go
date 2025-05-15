@@ -10,11 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/hslatman/mud.yang.go/pkg/mudyang"
+	"github.com/hslatman/go-mudyang"
 )
 
-func TestMudfile_ΛValidate(t *testing.T) {
+func TestMudfileValidate(t *testing.T) {
 	t.Parallel()
+
 	leafRefOptions := &ytypes.LeafrefOptions{
 		IgnoreMissingData: false,
 		Log:               true,
@@ -31,56 +32,56 @@ func TestMudfile_ΛValidate(t *testing.T) {
 	}{
 		{
 			name:     "ok/amazon-echo",
-			filepath: "./../../examples/amazonEchoMud.json",
+			filepath: "./examples/amazonEchoMud.json",
 			args: args{
 				opts: []ygot.ValidationOption{leafRefOptions},
 			},
 		},
 		{
 			name:     "ok/lightbulb-2000",
-			filepath: "./../../examples/lightbulb2000.json",
+			filepath: "./examples/lightbulb2000.json",
 			args: args{
 				opts: []ygot.ValidationOption{leafRefOptions},
 			},
 		},
 		{
 			name:     "ok/wemo-switch",
-			filepath: "./../../examples/wemoswitchMud.json",
+			filepath: "./examples/wemoswitchMud.json",
 			args: args{
 				opts: []ygot.ValidationOption{leafRefOptions},
 			},
 		},
 		{
 			name:     "ok/ol",
-			filepath: "./../../examples/ol/olExample.json",
+			filepath: "./examples/ol/olExample.json",
 			args: args{
 				opts: []ygot.ValidationOption{leafRefOptions},
 			},
 		},
 		{
 			name:     "ok/transparency/mixed",
-			filepath: "./../../examples/transparency/mixedExample.json",
+			filepath: "./examples/transparency/mixedExample.json",
 			args: args{
 				opts: []ygot.ValidationOption{leafRefOptions},
 			},
 		},
 		{
 			name:     "ok/transparency/complete",
-			filepath: "./../../examples/transparency/completeExample.json",
+			filepath: "./examples/transparency/completeExample.json",
 			args: args{
 				opts: []ygot.ValidationOption{leafRefOptions},
 			},
 		},
 		{
 			name:     "ok/tls/example",
-			filepath: "./../../examples/tls/example.json",
+			filepath: "./examples/tls/example.json",
 			args: args{
 				opts: []ygot.ValidationOption{leafRefOptions},
 			},
 		},
 		{
 			name:     "fail/amazon-echo",
-			filepath: "./../../examples/invalidAmazonEchoMud.json",
+			filepath: "./examples/invalidAmazonEchoMud.json",
 			args: args{
 				opts: []ygot.ValidationOption{leafRefOptions},
 			},
@@ -108,7 +109,7 @@ func TestMudfile_ΛValidate(t *testing.T) {
 
 			assert.NoError(t, err)
 
-			err = mud.ΛValidate(tc.args.opts...)
+			err = mud.Validate(tc.args.opts...)
 			if tc.wantValidationErr {
 				assert.Error(t, err)
 				return

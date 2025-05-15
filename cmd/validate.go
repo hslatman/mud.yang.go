@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hslatman/mud.yang.go/pkg/mudyang"
 	"github.com/openconfig/ygot/ytypes"
 	"github.com/spf13/cobra"
+
+	"github.com/hslatman/go-mudyang"
 )
 
 var validateCmd = &cobra.Command{
