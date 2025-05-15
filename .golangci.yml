@@ -3,3 +3,4 @@ linters:
   exclusions:
     paths:
       - mudyang.go # generated code
+      - cmd/ # code to be removed soon
