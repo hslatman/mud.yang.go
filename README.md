@@ -15,13 +15,13 @@ The (required) YANG files were sourced from [yangmodels/yang](https://github.com
  
 Import the generated code as a library:
 
-```
+```console
 go get github.com/hslatman/go-mudyang
 ```
 
 And use it:
 
-```bash
+```golang
 package main
 
 import (
@@ -75,7 +75,7 @@ These changes included changing the following fields:
 The [openconfig/ygot/generator](https://github.com/openconfig/ygot/tree/master/generator) is used as a `go tool` to generate the Go code.
 It can be used as follows:
 
-```bash
+```console
 # run the generate make target
 $ make generate
 ```
